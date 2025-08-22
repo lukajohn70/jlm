@@ -1,0 +1,52 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+error_log
+
+# Cache
+cache/
+tmp/
+temp/
+
+# Uploads (if you don't want to include user uploads)
+uploads/
+jogigs/uploads/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database files
+*.sql
+*.db
+
+# Node modules (if any)
+node_modules/
+
+# Composer (if any)
+vendor/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# MAMP specific
+Applications/MAMP/

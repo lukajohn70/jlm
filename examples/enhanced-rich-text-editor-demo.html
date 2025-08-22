@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced JLM Rich Text Editor - Full Feature Demo</title>
+    
+    <!-- Include Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Include the Rich Text Editor API -->
+    <script src="../assets/js/rich-text-editor.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 3rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            margin: 15px 0 0 0;
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature-card h3 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.3rem;
+        }
+        
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .demo-section {
+            margin-bottom: 50px;
+        }
+        
+        .demo-section h2 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            font-size: 2rem;
+        }
+        
+        .demo-section p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            font-size: 1.1rem;
+        }
+        
+        .editor-container {
+            margin: 25px 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+        
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+        
+        .code-block {
+            background: #1f2937;
+            color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        
+        .highlight {
+            background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin: 5px 0 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Enhanced Rich Text Editor</h1>
+            <p>Professional-grade content creation with multimedia, typography, and advanced formatting</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>🎨 35+ Fonts</h3>
+                <p>From classic serifs to modern sans-serifs, including decorative and monospace fonts for every design need.</p>
+            </div>
+            <div class="feature-card">
+                <h3>📹 Multimedia</h3>
+                <p>Insert images, videos, and audio with resizing, alignment, and text wrapping capabilities.</p>
+            </div>
+            <div class="feature-card">
+                <h3>📝 Content Blocks</h3>
+                <p>Add quotes, code blocks, and section breaks to structure your content professionally.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🎯 Advanced Typography</h3>
+                <p>20+ font sizes, colors, background colors, and full text justification options.</p>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">35+</div>
+                    <div class="stat-label">Font Families</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">20+</div>
+                    <div class="stat-label">Font Sizes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">Media Types</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">∞</div>
+                    <div class="stat-label">Customization</div>
+                </div>
+            </div>
+            
+            <div class="demo-section">
+                <h2>🎨 Full-Featured Editor Demo</h2>
+                <p>Experience all the enhanced features in action. Try inserting different types of content, changing fonts, adding multimedia, and more!</p>
+                
+                <div class="editor-container">
+                    <div id="full-editor"></div>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="getFullContent()">
+                        <i class="fas fa-code"></i>Get HTML
+                    </button>
+                    <button class="btn btn-secondary" onclick="setSampleContent()">
+                        <i class="fas fa-magic"></i>Load Sample
+                    </button>
+                    <button class="btn btn-success" onclick="clearFullContent()">
+                        <i class="fas fa-trash"></i>Clear
+                    </button>
+                    <button class="btn btn-warning" onclick="toggleTheme()">
+                        <i class="fas fa-moon"></i>Toggle Theme
+                    </button>
+                </div>
+                
+                <div class="output" id="full-output">Click "Get HTML" to see the generated HTML code...</div>
+            </div>
+            
+            <div class="demo-section">
+                <h2>💻 Implementation Code</h2>
+                <p>Here's how to implement the enhanced rich text editor with all features:</p>
+                
+                <div class="code-block">
+// Enhanced Rich Text Editor with all features
+const editor = new RichTextEditor('full-editor', {
+    height: 500,
+    placeholder: 'Start creating amazing content with all the enhanced features...',
+    uploadUrl: '/upload_image.php',
+    
+    // Full toolbar with all features
+    toolbar: [
+        'bold', 'italic', 'underline', 'strikethrough',
+        'separator',
+        'alignLeft', 'alignCenter', 'alignRight', 'justifyFull',
+        'separator',
+        'bulletList', 'numberedList',
+        'separator',
+        'fontFamily', 'fontSize', 'textColor', 'backgroundColor',
+        'separator',
+        'link', 'image', 'video', 'audio',
+        'separator',
+        'quote', 'code', 'sectionBreak',
+        'separator',
+        'undo', 'redo',
+        'separator',
+        'clearFormat'
+    ],
+    
+    // 35+ fonts available
+    fonts: [
+        { name: 'Arial', value: 'Arial' },
+        { name: 'Times New Roman', value: 'Times New Roman' },
+        { name: 'Georgia', value: 'Georgia' },
+        { name: 'Helvetica', value: 'Helvetica' },
+        { name: 'Impact', value: 'Impact' },
+        { name: 'Comic Sans MS', value: 'Comic Sans MS' },
+        { name: 'Brush Script MT', value: 'Brush Script MT' },
+        { name: 'Papyrus', value: 'Papyrus' },
+        { name: 'American Typewriter', value: 'American Typewriter' },
+        { name: 'Consolas', value: 'Consolas' },
+        // ... and 25+ more fonts
+    ],
+    
+    // 20+ font sizes
+    fontSizes: [
+        { name: 'Very Small', value: '1' },
+        { name: 'Small', value: '2' },
+        { name: 'Normal', value: '3' },
+        { name: 'Large', value: '4' },
+        { name: 'Very Large', value: '5' },
+        { name: 'Huge', value: '6' },
+        { name: 'Maximum', value: '7' },
+        { name: '8px', value: '8px' },
+        { name: '12px', value: '12px' },
+        { name: '16px', value: '16px' },
+        { name: '20px', value: '20px' },
+        { name: '24px', value: '24px' },
+        { name: '32px', value: '32px' },
+        { name: '48px', value: '48px' },
+        { name: '64px', value: '64px' }
+        // ... and more sizes
+    ],
+    
+    onContentChange: (content) => {
+        console.log('Content updated:', content);
+        // Auto-save, validation, or other actions
+    }
+});
+                </div>
+            </div>
+            
+            <div class="demo-section">
+                <h2>🎯 Key Features Explained</h2>
+                
+                <h3>📹 Multimedia Support</h3>
+                <p><span class="highlight">Images, Videos, Audio</span> - Insert any type of media with full formatting control:</p>
+                <ul>
+                    <li><strong>Resizing:</strong> Click and drag to resize, or use the quick size buttons (25%, 50%, 75%, 100%)</li>
+                    <li><strong>Alignment:</strong> Left, center, or right align your media</li>
+                    <li><strong>Text Wrap:</strong> Wrap text around media elements for professional layouts</li>
+                    <li><strong>Double-click:</strong> Open the formatting modal for precise control</li>
+                </ul>
+                
+                <h3>🎨 Typography</h3>
+                <p><span class="highlight">35+ Fonts & 20+ Sizes</span> - Professional typography options:</p>
+                <ul>
+                    <li><strong>Serif Fonts:</strong> Times New Roman, Georgia, Garamond, Baskerville</li>
+                    <li><strong>Sans-serif Fonts:</strong> Arial, Helvetica, Tahoma, Verdana</li>
+                    <li><strong>Decorative Fonts:</strong> Impact, Comic Sans MS, Brush Script MT</li>
+                    <li><strong>Monospace Fonts:</strong> Courier New, Consolas, Monaco</li>
+                    <li><strong>Font Sizes:</strong> From 8px to 64px, plus relative sizes</li>
+                </ul>
+                
+                <h3>📝 Content Blocks</h3>
+                <p><span class="highlight">Quotes, Code, Sections</span> - Structure your content professionally:</p>
+                <ul>
+                    <li><strong>Quotes:</strong> Styled blockquotes with left border and background</li>
+                    <li><strong>Code Blocks:</strong> Syntax-highlighted code with monospace font</li>
+                    <li><strong>Section Breaks:</strong> Horizontal rules to separate content sections</li>
+                </ul>
+                
+                <h3>🎯 Advanced Formatting</h3>
+                <p><span class="highlight">Full Justification & More</span> - Professional text formatting:</p>
+                <ul>
+                    <li><strong>Full Justification:</strong> Text aligned to both left and right margins</li>
+                    <li><strong>Text Colors:</strong> Custom color picker for text</li>
+                    <li><strong>Background Colors:</strong> Highlight text with background colors</li>
+                    <li><strong>Strikethrough:</strong> Cross out text for corrections or emphasis</li>
+                </ul>
+            </div>
+            
+            <div class="demo-section">
+                <h2>🚀 Usage Examples</h2>
+                
+                <h3>Blog Post Editor</h3>
+                <div class="code-block">
+const blogEditor = new RichTextEditor('blog-content', {
+    height: 600,
+    placeholder: 'Write your amazing blog post...',
+    toolbar: [
+        'bold', 'italic', 'underline', 'strikethrough',
+        'separator',
+        'alignLeft', 'alignCenter', 'alignRight', 'justifyFull',
+        'separator',
+        'bulletList', 'numberedList',
+        'separator',
+        'fontFamily', 'fontSize', 'textColor', 'backgroundColor',
+        'separator',
+        'link', 'image', 'video', 'audio',
+        'separator',
+        'quote', 'code', 'sectionBreak',
+        'separator',
+        'undo', 'redo'
+    ]
+});
+                </div>
+                
+                <h3>Email Composer</h3>
+                <div class="code-block">
+const emailEditor = new RichTextEditor('email-body', {
+    height: 400,
+    placeholder: 'Compose your professional email...',
+    toolbar: [
+        'bold', 'italic', 'underline',
+        'separator',
+        'alignLeft', 'alignCenter', 'alignRight',
+        'separator',
+        'fontFamily', 'fontSize', 'textColor',
+        'separator',
+        'link', 'image', 'video',
+        'separator',
+        'quote', 'sectionBreak'
+    ]
+});
+                </div>
+                
+                <h3>Minimal Comment Editor</h3>
+                <div class="code-block">
+const commentEditor = new RichTextEditor('comment-input', {
+    height: 150,
+    placeholder: 'Write your comment...',
+    toolbar: ['bold', 'italic', 'link', 'image'],
+    onContentChange: (content) => {
+        // Enable/disable submit button
+        document.getElementById('submit-btn').disabled = !content.trim();
+    }
+});
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize the enhanced editor when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create the full-featured editor instance
+            window.fullEditor = new RichTextEditor('full-editor', {
+                height: 500,
+                placeholder: 'Start creating amazing content with all the enhanced features...',
+                uploadUrl: '/upload_image.php',
+                
+                // Full toolbar with all features
+                toolbar: [
+                    'bold', 'italic', 'underline', 'strikethrough',
+                    'separator',
+                    'alignLeft', 'alignCenter', 'alignRight', 'justifyFull',
+                    'separator',
+                    'bulletList', 'numberedList',
+                    'separator',
+                    'fontFamily', 'fontSize', 'textColor', 'backgroundColor',
+                    'separator',
+                    'link', 'image', 'video', 'audio',
+                    'separator',
+                    'quote', 'code', 'sectionBreak',
+                    'separator',
+                    'undo', 'redo',
+                    'separator',
+                    'clearFormat'
+                ],
+                
+                onContentChange: (content) => {
+                    console.log('Enhanced editor content changed:', content);
+                }
+            });
+        });
+        
+        // Demo functions
+        function getFullContent() {
+            const content = window.fullEditor.getContent();
+            document.getElementById('full-output').textContent = content;
+        }
+        
+        function setSampleContent() {
+            const sampleContent = `
+                <h1 style="color: #667eea; font-family: 'Georgia', serif;">Welcome to Enhanced Rich Text Editing!</h1>
+                
+                <p style="font-family: 'Arial', sans-serif; font-size: 18px;">This is a <strong>comprehensive demonstration</strong> of all the enhanced features available in the JLM Rich Text Editor API.</p>
+                
+                <blockquote class="jlm-quote">
+                    "The enhanced editor provides professional-grade content creation capabilities with multimedia support, advanced typography, and flexible formatting options."
+                </blockquote>
+                
+                <h2 style="color: #764ba2;">Key Features:</h2>
+                <ul>
+                    <li><span style="color: #28a745;">35+ Font Families</span> - From classic to modern</li>
+                    <li><span style="color: #28a745;">20+ Font Sizes</span> - Precise typography control</li>
+                    <li><span style="color: #28a745;">Multimedia Support</span> - Images, videos, and audio</li>
+                    <li><span style="color: #28a745;">Content Blocks</span> - Quotes, code, and sections</li>
+                    <li><span style="color: #28a745;">Advanced Formatting</span> - Full justification and more</li>
+                </ul>
+                
+                <hr class="jlm-section-break">
+                
+                <pre class="jlm-code">// Example code block
+const editor = new RichTextEditor('container', {
+    height: 400,
+    toolbar: ['bold', 'italic', 'image', 'video']
+});</pre>
+                
+                <p style="text-align: center; font-style: italic;">Try all the features above! Insert images, videos, change fonts, add quotes, and more.</p>
+            `;
+            window.fullEditor.setContent(sampleContent);
+        }
+        
+        function clearFullContent() {
+            window.fullEditor.setContent('');
+        }
+        
+        function toggleTheme() {
+            const currentTheme = document.querySelector('#full-editor').getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            window.fullEditor.setTheme(newTheme);
+        }
+    </script>
+</body>
+</html> 
