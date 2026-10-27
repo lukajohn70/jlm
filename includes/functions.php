@@ -801,3 +801,130 @@ function jlm_has_cookie_consent($category = 'necessary') {
     return !empty($consent[$category]);
 }
 
+/**
+ * Return organizations, clients, and partners worked with for rolling badges.
+ * @return array
+ */
+function get_worked_with_organizations() {
+    return [
+        [
+            'name' => 'Nigeria Reads Initiative',
+            'short_name' => 'Nigeria Reads',
+            'url' => 'http://nigeriareads.ng/',
+            'logo' => 'assets/images/clients/nigeriareads.png',
+            'tag' => 'Literacy Advocacy & Book Drives',
+            'pill' => 'Partner',
+            'pill_class' => 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        ],
+        [
+            'name' => 'KrossKhana',
+            'short_name' => 'KrossKhana',
+            'url' => 'https://krosskhana.org/',
+            'logo' => 'assets/images/clients/krosskhana.png',
+            'tag' => 'Creative Media & Productions',
+            'pill' => 'Featured Client',
+            'pill_class' => 'bg-indigo-50 text-indigo-700 border-indigo-200'
+        ],
+        [
+            'name' => 'Naija ReadFest',
+            'short_name' => 'Naija ReadFest',
+            'url' => 'http://naijareadfest.ng/',
+            'logo' => 'assets/images/clients/naijareadfest.png',
+            'tag' => '431h Longest Reading Marathon',
+            'pill' => 'Record Breaker',
+            'pill_class' => 'bg-amber-50 text-amber-700 border-amber-200'
+        ],
+        [
+            'name' => 'Guinness World Records™',
+            'short_name' => 'GWR Project',
+            'url' => 'https://naijareadfest.ng/',
+            'logo' => 'assets/images/clients/gwr.png',
+            'tag' => 'Official Technical Documentation',
+            'pill' => 'World Record',
+            'pill_class' => 'bg-rose-50 text-rose-700 border-rose-200'
+        ],
+        [
+            'name' => 'Viva Doxa Music School',
+            'short_name' => 'Viva Doxa',
+            'url' => 'https://vivadoxamusic.com/',
+            'logo' => 'assets/images/clients/vivadoxa.png',
+            'tag' => 'Music Academy & Production',
+            'pill' => 'Client',
+            'pill_class' => 'bg-pink-50 text-pink-700 border-pink-200'
+        ],
+        [
+            'name' => 'Deeper Life High School',
+            'short_name' => 'DLHS',
+            'url' => 'https://deeperlifehighschool.org/',
+            'logo' => 'assets/images/clients/dlhs.webp',
+            'tag' => 'Premier Secondary Education',
+            'pill' => 'Education',
+            'pill_class' => 'bg-blue-50 text-blue-700 border-blue-200'
+        ],
+        [
+            'name' => 'The Famous Isaacs',
+            'short_name' => 'Famous Isaacs',
+            'url' => 'https://thefamousisaacs.com/',
+            'logo' => 'assets/images/clients/thefamousisaacs.png',
+            'tag' => 'Docufilm & Visual Storytelling',
+            'pill' => 'Creative Partner',
+            'pill_class' => 'bg-purple-50 text-purple-700 border-purple-200'
+        ],
+        [
+            'name' => 'JS-Gold Digital World',
+            'short_name' => 'JS-Gold',
+            'url' => 'https://jsgold.org/',
+            'logo' => 'assets/images/clients/jsgold.png',
+            'tag' => 'Enterprise IT & Cloud Systems',
+            'pill' => 'Tech Partner',
+            'pill_class' => 'bg-cyan-50 text-cyan-700 border-cyan-200'
+        ],
+        [
+            'name' => 'SOKATWA',
+            'short_name' => 'SOKATWA',
+            'url' => 'https://www.sokatwa.org/',
+            'logo' => 'assets/images/clients/sokatwa.png',
+            'tag' => 'Women Leadership & Dev',
+            'pill' => 'Client',
+            'pill_class' => 'bg-teal-50 text-teal-700 border-teal-200'
+        ],
+        [
+            'name' => 'WAYTI',
+            'short_name' => 'WAYTI',
+            'url' => 'http://wayti.org/',
+            'logo' => 'assets/images/clients/wayti.png',
+            'tag' => 'Women & Youth Transformation Initiative',
+            'pill' => 'Initiative',
+            'pill_class' => 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        ],
+        [
+            'name' => 'B&R Spices',
+            'short_name' => 'B&R Spices',
+            'url' => 'https://bandrspices.com/',
+            'logo' => 'assets/images/clients/bandrspices.png',
+            'tag' => 'Agro-Commodity & Spice Export',
+            'pill' => 'Commerce',
+            'pill_class' => 'bg-orange-50 text-orange-700 border-orange-200'
+        ],
+        [
+            'name' => 'DCLM Kaduna Broadcast',
+            'short_name' => 'DCLM',
+            'url' => 'https://youtube.com/@dclmkadunahq',
+            'logo' => 'assets/images/clients/dclm.png',
+            'tag' => 'Live Streaming & Media Broadcast',
+            'pill' => 'Broadcast',
+            'pill_class' => 'bg-red-50 text-red-700 border-red-200'
+        ],
+        [
+            'name' => 'JLM Creative Media',
+            'short_name' => 'JLM Media',
+            'url' => 'https://jlm.com.ng/',
+            'logo' => 'assets/images/clients/jlm.png',
+            'tag' => 'Creative Direction & Digital Hub',
+            'pill' => 'Agency Hub',
+            'pill_class' => 'bg-violet-50 text-[#1b2299] border-violet-200'
+        ]
+    ];
+}
+
+

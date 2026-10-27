@@ -169,6 +169,7 @@ $potentialParents = $pdo->query('SELECT id, title FROM portfolio WHERE parent_id
                     <label for="type" class="block text-sm font-bold text-gray-700 mb-0.5">Display/Action Type</label>
                     <p class="text-[11px] text-gray-500 mb-2 italic">How this item should behave when clicked.</p>
                     <select id="type" name="type" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-[#1b2299] focus:ring-2 focus:ring-[#1b2299]/20 outline-none transition-all">
+                        <option value="gwr" <?php echo ($editItem['type'] ?? '') === 'gwr' ? 'selected' : ''; ?>>Guinness World Record (Case Study & Modal)</option>
                         <option value="link" <?php echo ($editItem['type'] ?? '') === 'link' ? 'selected' : ''; ?>>Standard Link / Website (Direct Redirect)</option>
                         <option value="video" <?php echo ($editItem['type'] ?? '') === 'video' ? 'selected' : ''; ?>>Video Modal (Pop-up Player)</option>
                         <option value="music" <?php echo ($editItem['type'] ?? '') === 'music' ? 'selected' : ''; ?>>Music Showcase Modal (Multiple Embeds)</option>

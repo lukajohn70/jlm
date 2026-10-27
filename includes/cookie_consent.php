@@ -24,22 +24,6 @@ if (function_exists('asset_url')) {
 <!-- ========================================== -->
 <div id="jlm-cookie-consent-wrapper" class="jlm-cookie-system" style="font-family: inherit;">
 
-    <!-- Floating Cookie Preferences Trigger (Bottom Left) -->
-    <button type="button" 
-            id="jlm-cookie-floating-btn" 
-            onclick="openCookieSettings()" 
-            class="fixed bottom-5 left-5 z-[99990] flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-full text-xs shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#e4306d]"
-            aria-label="Manage cookie settings"
-            title="Manage cookie settings">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-[#f7de7a]" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21.598 11.064a1.006 1.006 0 0 0-.854-.172A3.993 3.993 0 0 1 15.6 5.752a1.006 1.006 0 0 0-.74-1.127 9.99 9.99 0 0 0-2.86-.412C6.486 4.213 2 8.7 2 14.213c0 5.514 4.486 10 10 10 5.253 0 9.569-4.062 9.967-9.213a1.006 1.006 0 0 0-.369-.936zM12 22.213c-4.411 0-8-3.589-8-8 0-4.148 3.178-7.561 7.236-7.946a5.986 5.986 0 0 0 5.568 5.568c-.385 4.058-3.798 7.236-7.946 7.236z"/>
-            <circle cx="8.5" cy="11.5" r="1.5"/>
-            <circle cx="14.5" cy="15.5" r="1.5"/>
-            <circle cx="9.5" cy="17.5" r="1.5"/>
-        </svg>
-        <span class="font-medium">Cookie Settings</span>
-    </button>
-
     <!-- Main Consent Banner (Initially hidden until JS checks state) -->
     <div id="jlm-cookie-banner" 
          class="fixed bottom-0 inset-x-0 z-[99999] p-3 sm:p-5 pointer-events-none hidden" 

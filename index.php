@@ -21,6 +21,9 @@ if (!isset($_SESSION['csrf_token'])) {
 }
 
 $portfolio_items = get_portfolio_items(null, 12);
+$worked_with_orgs = get_worked_with_organizations();
+// Duplicate organizations for seamless continuous single-row infinite rolling
+$marquee_row = array_merge($worked_with_orgs, $worked_with_orgs);
 
 ?>
 <!DOCTYPE html>
@@ -44,7 +47,46 @@ $portfolio_items = get_portfolio_items(null, 12);
   <link rel="shortcut icon" href="<?php echo asset_url('favicon.ico'); ?>" type="image/x-icon">
   <link rel="icon" href="<?php echo asset_url('favicon.ico'); ?>" type="image/x-icon">
   <link rel="icon" type="image/png" href="<?php echo asset_url('assets/images/jlm.png'); ?>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+/* Rolling Marquee Badges */
+.marquee-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: scrollLeft 80s linear infinite;
+  will-change: transform;
+}
+
+.marquee-container:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes scrollLeft {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+    overflow-x: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
 main.opacity-0 {
   opacity: 0;
   transform: scale(0.98) translateY(20px);
@@ -159,6 +201,10 @@ main {
             Portfolio
             <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#1b2299] to-[#e4306d] group-hover:w-full transition-all duration-300"></span>
           </a>
+          <a href="#organizations" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 relative group">
+            Clients
+            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#1b2299] to-[#e4306d] group-hover:w-full transition-all duration-300"></span>
+          </a>
           <a href="#about" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 relative group">
             About
             <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#1b2299] to-[#e4306d] group-hover:w-full transition-all duration-300"></span>
@@ -199,6 +245,7 @@ main {
           <a href="#home" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">Home</a>
           <a href="#services" onclick="scrollToSection(event, '#services')" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">Services</a>
           <a href="#portfolio" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">Portfolio</a>
+          <a href="#organizations" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">Clients</a>
           <a href="#about" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">About</a>
           <a href="#testimonials" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">Testimonials</a>
           <a href="blog.php" class="text-gray-700 hover:text-[#1b2299] transition-colors duration-200 py-2">Blog</a>
@@ -250,13 +297,15 @@ main {
         <div class="grid lg:grid-cols-2 gap-12 items-center">
           <div class="text-center lg:text-left">
             <div class="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm border border-[#1b2299]/20 rounded-full px-4 py-2 mb-6">
-              <span class="text-sm font-medium text-gray-700">Award-Winning Creative Team</span>
+              <span class="text-xs sm:text-sm font-medium text-gray-700">
+                Technical Documentation Team &bull; <span class="text-[#1b2299] font-semibold">Guinness World Record Holder</span>
+              </span>
             </div>
             <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
               Bring Your <span class="bg-gradient-to-r from-[#1b2299] to-[#e4306d] bg-clip-text text-transparent">Creative Vision</span> to Life
             </h1>
-            <p class="text-xl text-gray-600 mb-8 max-w-2xl">
-              JLM delivers world-class video production, music creation, livestreaming, motion graphics, web design, and media consultancy services. We bring your vision to life with innovative techniques and personalized service.
+            <p class="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl leading-relaxed">
+              From engineering the 431-hour continuous technical documentation for the current Guinness World Record to delivering high-impact broadcasts and video production, JLM brings creative visions to life with zero-fail reliability.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <a href="booking.php" class="bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-6 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl hover:from-[#151d7a] hover:to-[#c2285a] flex items-center justify-center gap-2">
@@ -278,11 +327,81 @@ main {
                 <span class="text-sm font-medium">Live</span>
               </span>
             </div>
-            <div class="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md border border-white/30 p-2 rounded-lg shadow-lg animate-pulse
-                text-xs font-semibold min-w-[70px] flex flex-col items-center justify-center z-20">
-              <div class="font-medium">15+ Years</div>
-              <div class="text-gray-500" style="font-size:10px;">Experience</div>
+            <div class="absolute bottom-4 right-4 sm:-bottom-4 sm:right-6 bg-white/95 backdrop-blur-md border border-gray-200/90 p-4 rounded-2xl shadow-xl z-20 max-w-[260px] text-left">
+              <div class="text-[11px] uppercase tracking-wider font-semibold text-[#1b2299] mb-1">
+                Guinness World Record™
+              </div>
+              <div class="text-base sm:text-lg font-bold text-gray-900 leading-tight">
+                431h 31m Non-Stop
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                Technical Documentation &bull; 100% Uptime
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Organizations We Have Worked With Section (Rolling Badges) -->
+    <section id="organizations" class="py-14 sm:py-20 bg-gradient-to-b from-white via-slate-50/70 to-white border-y border-gray-150 relative overflow-hidden">
+      <div class="container mx-auto px-4 lg:px-8 mb-10 text-center relative z-10">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1b2299]/10 border border-[#1b2299]/20 text-[#1b2299] text-xs sm:text-sm font-semibold mb-4 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-[#e4306d] animate-ping"></span>
+          <span class="tracking-wider uppercase text-[11px] font-bold">Proven Track Record</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+          Organizations <span class="bg-gradient-to-r from-[#1b2299] via-[#87207c] to-[#e4306d] bg-clip-text text-transparent">We Have Worked With</span>
+        </h2>
+        <p class="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          From powering technical documentation for Guinness World Records to engineering web platforms, multimedia productions, and broadcasts for pioneering organizations.
+        </p>
+      </div>
+
+      <!-- Single Marquee Ribbon Row -->
+      <div class="relative w-full overflow-hidden">
+        <!-- Edge Gradient Fade Masks -->
+        <div class="pointer-events-none absolute inset-y-0 left-0 w-20 sm:w-36 md:w-56 bg-gradient-to-r from-white via-white/80 to-transparent z-20"></div>
+        <div class="pointer-events-none absolute inset-y-0 right-0 w-20 sm:w-36 md:w-56 bg-gradient-to-l from-white via-white/80 to-transparent z-20"></div>
+
+        <div class="marquee-container py-2" aria-label="Organizations We Have Worked With">
+          <div class="marquee-track">
+            <?php foreach ($marquee_row as $item): ?>
+              <a href="<?php echo htmlspecialchars($item['url']); ?>" 
+                 target="_blank" 
+                 rel="noopener noreferrer" 
+                 class="group flex items-center gap-3.5 px-5 py-3.5 rounded-2xl bg-white/95 hover:bg-white backdrop-blur-md border border-gray-200/90 hover:border-[#1b2299]/50 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_24px_rgba(27,34,153,0.12)] transition-all duration-300 transform hover:-translate-y-1 cursor-pointer select-none mx-2.5 sm:mx-3 flex-shrink-0"
+                 title="<?php echo htmlspecialchars($item['name'] . ' – ' . $item['tag']); ?>">
+                <div class="w-12 h-12 rounded-xl bg-gray-50/90 border border-gray-150 p-2 flex items-center justify-center flex-shrink-0 group-hover:bg-white group-hover:scale-105 group-hover:shadow-sm transition-all duration-300 overflow-hidden">
+                  <img src="<?php echo htmlspecialchars(asset_url($item['logo'])); ?>" 
+                       alt="<?php echo htmlspecialchars($item['short_name']); ?> Logo" 
+                       class="max-w-full max-h-full object-contain filter drop-shadow-sm" 
+                       loading="lazy" 
+                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                  <div class="hidden w-full h-full items-center justify-center rounded-lg bg-gradient-to-br from-[#1b2299] to-[#e4306d] text-white font-bold text-xs uppercase shadow-sm">
+                    <?php echo htmlspecialchars(substr($item['short_name'], 0, 2)); ?>
+                  </div>
+                </div>
+                <div class="flex flex-col text-left pr-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs sm:text-sm font-bold text-gray-900 group-hover:text-[#1b2299] transition-colors whitespace-nowrap">
+                      <?php echo htmlspecialchars($item['name']); ?>
+                    </span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide border <?php echo $item['pill_class']; ?> whitespace-nowrap">
+                      <?php echo htmlspecialchars($item['pill']); ?>
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="text-[11px] sm:text-xs text-gray-500 group-hover:text-gray-700 transition-colors whitespace-nowrap font-medium">
+                      <?php echo htmlspecialchars($item['tag']); ?>
+                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-gray-400 group-hover:text-[#e4306d] opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </div>
+                </div>
+              </a>
+            <?php endforeach; ?>
           </div>
         </div>
       </div>
@@ -398,7 +517,15 @@ main {
             $displayImage = get_portfolio_display_image($cat);
           ?>
           <div class="group relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 bg-white animated-border portfolio-card">
-            <?php if (!empty($displayImage)): ?>
+            <?php if ($type === 'gwr'): ?>
+            <div class="w-full h-64 bg-gradient-to-br from-slate-950 via-[#101754] to-slate-950 p-6 flex flex-col items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute inset-0 bg-[radial-gradient(#1b2299_1px,transparent_1px)] [background-size:16px_16px] opacity-25"></div>
+              <img src="<?php echo htmlspecialchars(asset_url($displayImage)); ?>" alt="<?php echo $title; ?>" class="max-h-24 max-w-[85%] object-contain relative z-10 drop-shadow-md mb-3" />
+              <div class="relative z-10 flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[11px] font-semibold tracking-wide uppercase">
+                <span>Guinness World Record™</span>
+              </div>
+            </div>
+            <?php elseif (!empty($displayImage)): ?>
             <img src="<?php echo htmlspecialchars($displayImage); ?>" alt="<?php echo $title; ?>" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
             <?php elseif (!empty($externalUrl) && $type === 'link'): 
               $parsedUrl = parse_url($externalUrl);
@@ -409,12 +536,33 @@ main {
                <span class="text-gray-700 font-semibold text-lg px-4 text-center break-all"><?php echo htmlspecialchars($domain); ?></span>
             </div>
             <?php endif; ?>
-            <div class="p-6 transition-colors duration-300 group-hover:bg-gray-50 h-full">
-              <span class="inline-block bg-[#1b2299]/10 text-[#1b2299] px-3 py-1 rounded-full text-xs mb-3"><?php echo htmlspecialchars($cat['category']); ?></span>
-              <h3 class="mb-2 group-hover:text-[#1b2299] transition-colors duration-300"><?php echo $title; ?></h3>
-              <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800"><?php echo htmlspecialchars($cat['description'] ?? ''); ?></p>
+            <div class="p-6 transition-colors duration-300 group-hover:bg-gray-50 h-full flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <span class="inline-block bg-[#1b2299]/10 text-[#1b2299] px-3 py-1 rounded-full text-xs font-semibold"><?php echo htmlspecialchars($cat['category']); ?></span>
+                  <?php if ($type === 'gwr'): ?>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                      431h 31m &bull; 18 Days
+                    </span>
+                  <?php endif; ?>
+                </div>
+                <h3 class="mb-2 text-lg font-bold group-hover:text-[#1b2299] transition-colors duration-300"><?php echo $title; ?></h3>
+                <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800"><?php echo htmlspecialchars($cat['description'] ?? ''); ?></p>
+              </div>
               
-              <?php if ($type === 'link' && !empty($externalUrl)): ?>
+              <?php if ($type === 'gwr'): ?>
+              <div class="flex items-center gap-4 mt-5 pt-3 border-t border-gray-100">
+                <button type="button" onclick="openDynamicModal('gwrPreviewModal')" class="inline-flex items-center text-xs font-bold text-gray-800 hover:text-[#1b2299] transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 5-4.03 9-9 9S3 17 3 12 7.03 3 12 3s9 4.03 9 9z" /></svg>
+                  Quick Preview
+                </button>
+                <span class="text-gray-300">&bull;</span>
+                <a href="gwr-case-study.php" class="inline-flex items-center text-xs font-bold text-[#e4306d] hover:text-[#1b2299] transition-colors">
+                  Case Study
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" /></svg>
+                </a>
+              </div>
+              <?php elseif ($type === 'link' && !empty($externalUrl)): ?>
               <a href="<?php echo $externalUrl; ?>" target="_blank" rel="noopener" class="inline-flex items-center mt-4 text-[#e4306d] font-semibold hover:text-[#1b2299] transition-colors">
                 View Project
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5h5m0 0v5m0-5L10 14" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10v9h9" /></svg>
@@ -445,6 +593,15 @@ main {
                 <button onclick="openDynamicModal('graphicsModal-<?php echo $cat['id']; ?>')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
                   <i class="fas fa-palette text-xs"></i> View Designs
                 </button>
+              <?php elseif ($type === 'gwr'): ?>
+                <div class="flex items-center gap-3 mb-8">
+                  <button type="button" onclick="openDynamicModal('gwrPreviewModal')" class="px-4 py-2 bg-white text-gray-900 rounded-lg shadow-lg font-semibold text-xs transition-all duration-200 hover:scale-105 ripple flex items-center gap-1.5">
+                    Quick Preview
+                  </button>
+                  <a href="gwr-case-study.php" class="px-4 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-semibold text-xs transition-all duration-200 hover:scale-105 ripple flex items-center gap-1.5">
+                    Case Study &rarr;
+                  </a>
+                </div>
               <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -899,26 +1056,40 @@ main {
           <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php foreach ($children as $child): ?>
               <?php $childDisplayImage = get_portfolio_display_image($child); ?>
-              <div class="space-y-3">
-                <div class="flex items-center gap-3 mb-3">
-                  <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs"><?php echo htmlspecialchars((string)($child['category'] ?? 'Portfolio')); ?></span>
-                  <h4 class="text-lg font-semibold text-gray-800"><?php echo htmlspecialchars((string)$child['title']); ?></h4>
-                </div>
-                <?php if (!empty($childDisplayImage)): ?>
-                  <img src="<?php echo htmlspecialchars($childDisplayImage); ?>" alt="<?php echo htmlspecialchars($child['title']); ?>" class="w-full h-48 object-cover rounded-lg shadow-md" />
-                <?php elseif (!empty($child['external_url'])): 
-                  $childParsedUrl = parse_url($child['external_url']);
-                  $childDomain = isset($childParsedUrl['host']) ? preg_replace('/^www\./', '', $childParsedUrl['host']) : 'Website';
-                ?>
-                  <div class="w-full h-48 bg-gradient-to-br from-[#1b2299]/10 to-[#e4306d]/10 rounded-lg shadow-md flex flex-col items-center justify-center border border-[#1b2299]/10">
-                    <img src="https://www.google.com/s2/favicons?domain=<?php echo urlencode($childDomain); ?>&sz=128" alt="Favicon" class="w-16 h-16 rounded-xl shadow-md mb-3 bg-white p-2">
-                    <span class="text-gray-700 font-medium px-2 text-center break-all"><?php echo htmlspecialchars($childDomain); ?></span>
+              <div class="bg-gray-50/70 hover:bg-white rounded-xl p-5 border border-gray-200/80 hover:border-[#1b2299]/30 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="inline-block bg-[#1b2299]/15 text-[#1b2299] px-2.5 py-0.5 rounded-full text-xs font-semibold"><?php echo htmlspecialchars((string)($child['category'] ?? 'Website')); ?></span>
+                    <?php if (!empty($child['external_url'])): ?>
+                      <span class="text-[11px] text-gray-500 font-mono"><?php echo htmlspecialchars(preg_replace('/^www\./', '', parse_url($child['external_url'], PHP_URL_HOST) ?? '')); ?></span>
+                    <?php endif; ?>
                   </div>
-                <?php endif; ?>
-                <p class="text-gray-600 text-sm"><?php echo htmlspecialchars((string)$child['description']); ?></p>
-                <a href="<?php echo htmlspecialchars((string)$child['external_url']); ?>" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
-                  Visit Site
+                  <h4 class="text-lg font-bold text-gray-900 mb-3"><?php echo htmlspecialchars((string)$child['title']); ?></h4>
+                  <?php if (!empty($childDisplayImage)): ?>
+                    <div class="w-full h-44 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-3 mb-3 overflow-hidden shadow-inner">
+                      <?php if (strpos($childDisplayImage, 'assets/images/clients/') !== false): ?>
+                        <img src="<?php echo htmlspecialchars(asset_url($childDisplayImage)); ?>" alt="<?php echo htmlspecialchars($child['title']); ?>" class="max-h-28 max-w-[80%] object-contain filter drop-shadow-sm" loading="lazy" />
+                      <?php else: ?>
+                        <img src="<?php echo htmlspecialchars(asset_url($childDisplayImage)); ?>" alt="<?php echo htmlspecialchars($child['title']); ?>" class="w-full h-full object-cover rounded" loading="lazy" />
+                      <?php endif; ?>
+                    </div>
+                  <?php elseif (!empty($child['external_url'])): 
+                    $childParsedUrl = parse_url($child['external_url']);
+                    $childDomain = isset($childParsedUrl['host']) ? preg_replace('/^www\./', '', $childParsedUrl['host']) : 'Website';
+                  ?>
+                    <div class="w-full h-44 bg-gradient-to-br from-[#1b2299]/10 to-[#e4306d]/10 rounded-lg shadow-sm flex flex-col items-center justify-center border border-[#1b2299]/10 mb-3">
+                      <img src="https://www.google.com/s2/favicons?domain=<?php echo urlencode($childDomain); ?>&sz=128" alt="Favicon" class="w-14 h-14 rounded-xl shadow-md mb-2 bg-white p-2">
+                      <span class="text-gray-700 font-medium px-2 text-center text-xs break-all"><?php echo htmlspecialchars($childDomain); ?></span>
+                    </div>
+                  <?php endif; ?>
+                  <p class="text-gray-600 text-xs sm:text-sm leading-relaxed mb-4"><?php echo htmlspecialchars((string)$child['description']); ?></p>
+                </div>
+                <?php if (!empty($child['external_url'])): ?>
+                <a href="<?php echo htmlspecialchars((string)$child['external_url']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2.5 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm shadow-sm hover:shadow">
+                  <span>Visit Website</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                 </a>
+                <?php endif; ?>
               </div>
             <?php endforeach; ?>
           </div>
@@ -973,6 +1144,99 @@ main {
     <?php endif; ?>
   <?php endforeach; ?>
 
+  <!-- Guinness World Record Custom Modal Preview -->
+  <div id="gwrPreviewModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[9999] p-4 overflow-y-auto portfolio-modal" style="display: none;">
+    <div class="bg-white rounded-3xl max-w-3xl w-full mx-4 shadow-2xl relative my-8 overflow-hidden border border-gray-100">
+      <!-- Modal Header Banner -->
+      <div class="bg-gradient-to-r from-slate-950 via-[#101754] to-slate-950 p-6 sm:p-8 text-white relative">
+        <button type="button" onclick="closeDynamicModal('gwrPreviewModal')" class="absolute top-5 right-5 text-gray-400 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-2" aria-label="Close modal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-semibold tracking-wider uppercase mb-2 border border-amber-400/30">
+          Official Guinness World Record™ Documentation
+        </div>
+        <h3 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          Longest Marathon Reading Aloud by a Team
+        </h3>
+        <p class="text-sm text-gray-300 mt-2 max-w-xl">
+          Naija ReadFest &bull; Continuous Relay Reading of 79 Nigerian Authors &bull; The Library, Lagos
+        </p>
+      </div>
+
+      <!-- Quick Stats Strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 bg-gray-50 border-b border-gray-200">
+        <div>
+          <div class="text-2xl font-black text-[#1b2299]">431h 31m</div>
+          <div class="text-xs text-gray-500 font-medium">Record Duration</div>
+        </div>
+        <div>
+          <div class="text-2xl font-black text-gray-900">18 Days</div>
+          <div class="text-xs text-gray-500 font-medium">Continuous Live</div>
+        </div>
+        <div>
+          <div class="text-2xl font-black text-emerald-600">0 Seconds</div>
+          <div class="text-xs text-gray-500 font-medium">Technical Downtime</div>
+        </div>
+        <div>
+          <div class="text-2xl font-black text-[#e4306d]">100%</div>
+          <div class="text-xs text-gray-500 font-medium">GWR Ratified</div>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 sm:p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+        <div>
+          <h4 class="text-base font-bold text-gray-900 mb-2">The Technical Mandate</h4>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Guinness World Records enforces unforgiving evidence standards. To certify this historic 18-day attempt, JLM was commissioned as the technical documentation team to architect an unbroken, zero-fail recording and broadcast environment. A single camera outage, corrupt storage card, or audio drop would have disqualified the attempt.
+          </p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-[#1b2299] mb-1">Visual Evidence Matrix</div>
+            <p class="text-xs text-gray-600 leading-relaxed">
+              Continuous multi-angle coverage: tight facial capture for mouth movement verification, high-resolution book angle for text tracking, and wide room shot for adjudicators and witness logs.
+            </p>
+          </div>
+          <div class="p-4 rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-[#1b2299] mb-1">Power & Stream Failover</div>
+            <p class="text-xs text-gray-600 leading-relaxed">
+              Online double-conversion UPS battery banks paired with dual generator switchover and bonded cellular/fiber uplinks ensured zero electrical or broadcast drops across 431 hours.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-base font-bold text-gray-900 mb-2">The Reading Team</h4>
+          <p class="text-xs text-gray-600 mb-3">5 Relay Marathon Readers across geopolitical zones reading 79 works by Nigerian authors:</p>
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 font-medium">John J. Obot</span>
+            <span class="px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 font-medium">Keturah Heman</span>
+            <span class="px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 font-medium">Stephen A. Oyelami</span>
+            <span class="px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 font-medium">Preciouslight I. Ukachi</span>
+            <span class="px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 font-medium">Temitope Ogunremi</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <button type="button" onclick="closeDynamicModal('gwrPreviewModal')" class="w-full sm:w-auto px-5 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 transition-colors">
+          Close
+        </button>
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <a href="booking.php" class="w-full sm:w-auto text-center px-5 py-2.5 rounded-xl border border-gray-300 hover:border-gray-400 bg-white text-gray-800 text-xs font-bold shadow-sm transition hover:scale-105">
+            Book Live Production
+          </a>
+          <a href="gwr-case-study.php" class="w-full sm:w-auto text-center px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white text-xs font-bold shadow-lg shadow-[#1b2299]/30 transition hover:scale-105">
+            Read Full Case Study &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="bg-gray-900 text-white">
     <div class="container mx-auto px-4 lg:px-8 py-16 grid lg:grid-cols-4 gap-8">
@@ -1022,6 +1286,7 @@ main {
         <ul class="space-y-3">
           <li><a href="#about" class="text-gray-300 hover:text-[#f7de7a] transition-colors">About Us</a></li>
           <li><a href="#portfolio" class="text-gray-300 hover:text-[#f7de7a] transition-colors">Portfolio</a></li>
+          <li><a href="#organizations" class="text-gray-300 hover:text-[#f7de7a] transition-colors">Clients & Partners</a></li>
           <li><a href="#testimonials" class="text-gray-300 hover:text-[#f7de7a] transition-colors">Testimonials</a></li>
           <li><a href="#contact" class="text-gray-300 hover:text-[#f7de7a] transition-colors">Contact</a></li>
           <li><a href="booking.php" class="text-gray-300 hover:text-[#f7de7a] transition-colors flex items-center gap-2">Book Now</a></li>
