@@ -20,6 +20,8 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
+$portfolio_items = get_portfolio_items(null, 12);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,7 +41,9 @@ if (!isset($_SESSION['csrf_token'])) {
   </script>
   <script src="https://cdn.tailwindcss.com?ts=1690000000"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="assets/images/jlm.png">
+  <link rel="shortcut icon" href="<?php echo asset_url('favicon.ico'); ?>" type="image/x-icon">
+  <link rel="icon" href="<?php echo asset_url('favicon.ico'); ?>" type="image/x-icon">
+  <link rel="icon" type="image/png" href="<?php echo asset_url('assets/images/jlm.png'); ?>">
   <style>
 main.opacity-0 {
   opacity: 0;
@@ -127,7 +131,7 @@ main {
   <meta name="keywords" content="JLM, Creative Media, Video Production, Branding, Design, Nigeria, Agency, Portfolio, Testimonials, Blog, Contact">
   <meta property="og:title" content="JLM – Creative Media Agency" />
   <meta property="og:description" content="Transforming ideas into creative excellence through innovative media production and personalized service across Nigeria and beyond." />
-  <meta property="og:image" content="assets/images/jlm.png" />
+  <meta property="og:image" content="<?php echo asset_url('assets/images/jlm.png'); ?>" />
   <meta property="og:type" content="website" />
 </head>
 <body class="bg-white text-gray-900">
@@ -138,7 +142,7 @@ main {
         <!-- Logo -->
         <div class="flex items-center">
           <a href="#home" class="flex items-center gap-2" aria-label="Go to home section">
-            <img src="assets/images/jlm.png" alt="JLM logo, home" class="h-10 w-auto" />
+            <img src="<?php echo asset_url('assets/images/jlm.png'); ?>" alt="JLM logo, home" class="h-10 w-auto" />
           </a>
         </div>
         <!-- Desktop Navigation -->
@@ -383,105 +387,80 @@ main {
           <h2 class="text-3xl md:text-4xl mb-4">Our <span class="bg-gradient-to-r from-[#1b2299] to-[#e4306d] bg-clip-text text-transparent">Portfolio</span></h2>
           <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">Explore our diverse range of creative projects and see how we've helped brands and artists bring their visions to life through innovative media solutions.</p>
         </div>
+        
+        <?php if (!empty($portfolio_items)): ?>
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div class="relative rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:bg-gray-100 group cursor-pointer overflow-hidden animated-border portfolio-card">
-            <img src="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500&h=300&fit=crop" alt="Corporate Brand Video" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
-            <div class="p-6 bg-white transition-colors duration-300 group-hover:bg-gray-50">
-              <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs mb-3 transition-colors duration-300 group-hover:bg-[#1b2299]/10">Video Production</span>
-              <h3 class="mb-2 group-hover:text-[#1b2299] transition-colors duration-300">Promotional Video</h3>
-              <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800">Professional promotional video showcasing creative excellence</p>
+          <?php foreach ($portfolio_items as $cat): 
+            $type = $cat['type'] ?? 'link';
+            $externalUrl = htmlspecialchars($cat['external_url'] ?? '');
+            $title = htmlspecialchars($cat['title']);
+            $children = get_portfolio_items($cat['id']);
+            $displayImage = get_portfolio_display_image($cat);
+          ?>
+          <div class="group relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 bg-white animated-border portfolio-card">
+            <?php if (!empty($displayImage)): ?>
+            <img src="<?php echo htmlspecialchars($displayImage); ?>" alt="<?php echo $title; ?>" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+            <?php elseif (!empty($externalUrl) && $type === 'link'): 
+              $parsedUrl = parse_url($externalUrl);
+              $domain = isset($parsedUrl['host']) ? preg_replace('/^www\./', '', $parsedUrl['host']) : 'Website';
+            ?>
+            <div class="w-full h-64 bg-gradient-to-br from-[#1b2299]/10 to-[#e4306d]/10 flex flex-col items-center justify-center group-hover:scale-110 transition-transform duration-500 border-b border-gray-100">
+               <img src="https://www.google.com/s2/favicons?domain=<?php echo urlencode($domain); ?>&sz=128" alt="Favicon" class="w-20 h-20 rounded-2xl shadow-lg mb-4 bg-white p-2">
+               <span class="text-gray-700 font-semibold text-lg px-4 text-center break-all"><?php echo htmlspecialchars($domain); ?></span>
             </div>
-            <!-- Overlay Reveal -->
+            <?php endif; ?>
+            <div class="p-6 transition-colors duration-300 group-hover:bg-gray-50 h-full">
+              <span class="inline-block bg-[#1b2299]/10 text-[#1b2299] px-3 py-1 rounded-full text-xs mb-3"><?php echo htmlspecialchars($cat['category']); ?></span>
+              <h3 class="mb-2 group-hover:text-[#1b2299] transition-colors duration-300"><?php echo $title; ?></h3>
+              <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800"><?php echo htmlspecialchars($cat['description'] ?? ''); ?></p>
+              
+              <?php if ($type === 'link' && !empty($externalUrl)): ?>
+              <a href="<?php echo $externalUrl; ?>" target="_blank" rel="noopener" class="inline-flex items-center mt-4 text-[#e4306d] font-semibold hover:text-[#1b2299] transition-colors">
+                View Project
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5h5m0 0v5m0-5L10 14" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10v9h9" /></svg>
+              </a>
+              <?php endif; ?>
+            </div>
+
+            <!-- Interaction Overlays based on Type -->
+            <?php if ($type !== 'link'): ?>
             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-8 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-              <button onclick="openVideoModal('https://youtu.be/j2fTIrBSWUI', 'Promotional Video')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Watch Video
-              </button>
+              <?php if ($type === 'video'): ?>
+                <button onclick="openVideoModal('<?php echo $externalUrl; ?>', '<?php echo $title; ?>')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
+                  <i class="fas fa-play text-xs"></i> Watch Video
+                </button>
+              <?php elseif ($type === 'music'): ?>
+                <button onclick="openDynamicModal('musicModal-<?php echo $cat['id']; ?>')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
+                  <i class="fas fa-headphones text-xs"></i> Listen Now
+                </button>
+              <?php elseif ($type === 'channel'): ?>
+                <button onclick="openChannelModal('<?php echo $externalUrl; ?>', '<?php echo $title; ?>')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
+                  <i class="fab fa-youtube text-xs"></i> Visit Channel
+                </button>
+              <?php elseif ($type === 'web'): ?>
+                <button onclick="openDynamicModal('webModal-<?php echo $cat['id']; ?>')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
+                  <i class="fas fa-globe text-xs"></i> View Websites
+                </button>
+              <?php elseif ($type === 'graphics'): ?>
+                <button onclick="openDynamicModal('graphicsModal-<?php echo $cat['id']; ?>')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
+                  <i class="fas fa-palette text-xs"></i> View Designs
+                </button>
+              <?php endif; ?>
             </div>
+            <?php endif; ?>
           </div>
-          <div class="group relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:bg-gray-100 cursor-pointer animated-border portfolio-card">
-            <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&h=300&fit=crop" alt="Music Album Production" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
-            <div class="p-6 bg-white transition-colors duration-300 group-hover:bg-gray-50">
-              <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs mb-3 transition-colors duration-300 group-hover:bg-[#e4306d]/10">Music</span>
-              <h3 class="mb-2 group-hover:text-[#e4306d] transition-colors duration-300">Music Album Production</h3>
-              <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800">Complete album production for emerging artist</p>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-8 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-              <button onclick="openMusicModal()" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Watch Music
-              </button>
-            </div>
-          </div>
-          <div class="group relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:bg-gray-100 cursor-pointer animated-border portfolio-card">
-            <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&h=300&fit=crop" alt="Event Livestream" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
-            <div class="p-6 bg-white transition-colors duration-300 group-hover:bg-gray-50">
-              <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs mb-3 transition-colors duration-300 group-hover:bg-[#f7de7a]/10">Livestreaming</span>
-              <h3 class="mb-2 group-hover:text-[#f7de7a] transition-colors duration-300">YouTube Channel</h3>
-              <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800">Professional livestreaming content on YouTube</p>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-8 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-              <button onclick="openChannelModal('https://youtube.com/@dclmkadunahq', 'YouTube Channel')" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Visit Channel
-              </button>
-            </div>
-          </div>
-          
-          <!-- Web Design Portfolio Section -->
-          <div class="mt-16">
-            <div class="flex justify-center">
-              <!-- Single Web Design Card -->
-              <div class="relative rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:bg-gray-100 group cursor-pointer overflow-hidden animated-border portfolio-card max-w-md">
-                <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&h=300&fit=crop" alt="Web Design Projects" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
-                <div class="p-6 bg-white transition-colors duration-300 group-hover:bg-gray-50">
-                  <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs mb-3 transition-colors duration-300 group-hover:bg-[#1b2299]/10">Web Design</span>
-                  <h3 class="mb-2 group-hover:text-[#1b2299] transition-colors duration-300">Website Portfolio</h3>
-                  <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800">Explore our collection of modern, responsive websites across different industries</p>
-                </div>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-8 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-                  <button onclick="openWebDesignModal()" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    View Projects
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Graphics Design Portfolio Section -->
-          <div class="mt-16">
-            <div class="flex justify-center">
-              <!-- Single Graphics Design Card -->
-              <div class="relative rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:bg-gray-100 group cursor-pointer overflow-hidden animated-border portfolio-card max-w-md">
-                <img src="https://images.unsplash.com/photo-1626785774573-4b799315345d?w=500&h=300&fit=crop" alt="Graphics Design Projects" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
-                <div class="p-6 bg-white transition-colors duration-300 group-hover:bg-gray-50">
-                  <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs mb-3 transition-colors duration-300 group-hover:bg-[#e4306d]/10">Graphics Design</span>
-                  <h3 class="mb-2 group-hover:text-[#e4306d] transition-colors duration-300">Creative Graphics</h3>
-                  <p class="text-gray-600 text-sm transition-colors duration-300 group-hover:text-gray-800">Explore our collection of stunning graphics, logos, and visual designs</p>
-                </div>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-8 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
-                  <button onclick="openGraphicsModal()" class="mb-8 px-6 py-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white rounded-lg shadow-lg font-medium transition-all duration-200 hover:scale-105 ripple flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    View Projects
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <?php endforeach; ?>
         </div>
+
+        </div>
+        <?php else: ?>
+        <div class="text-center py-12">
+          <p class="text-gray-500 italic">No portfolio items available at the moment.</p>
+        </div>
+        <?php endif; ?>
       </div>
     </section>
+
 
     <!-- About Section -->
     <section id="about" class="py-20 bg-gradient-to-br from-gray-50 to-white">
@@ -582,15 +561,15 @@ main {
                   </div>
                 </div>
                 <div class="flex-1 text-center md:text-left">
-                  <p class="text-lg italic mb-4 text-gray-700">"<?php echo htmlspecialchars($testimonial['text']); ?>"</p>
+                  <p class="text-lg italic mb-4 text-gray-700">"<?php echo htmlspecialchars($testimonial['content'] ?? ''); ?>"</p>
                   <div class="flex items-center justify-center md:justify-start gap-2 mb-2">
                     <?php for ($i = 1; $i <= 5; $i++): ?>
-                      <svg class="w-5 h-5 <?php echo $i <= $testimonial['rating'] ? 'text-yellow-400 fill-current' : 'text-gray-300'; ?>" viewBox="0 0 20 20">
+                      <svg class="w-5 h-5 <?php echo $i <= ($testimonial['rating'] ?? 5) ? 'text-yellow-400 fill-current' : 'text-gray-300'; ?>" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                       </svg>
                     <?php endfor; ?>
                   </div>
-                  <div class="font-semibold text-[#1b2299]"><?php echo htmlspecialchars($testimonial['name']); ?></div>
+                  <div class="font-semibold text-[#1b2299]"><?php echo htmlspecialchars($testimonial['name'] ?? 'Anonymous'); ?></div>
                   <div class="text-gray-500 text-sm">
                     <?php 
                     $role_company = [];
@@ -679,7 +658,7 @@ main {
                 </span>
                 <div>
                   <h4 class="font-semibold text-gray-900 mb-1">Email</h4>
-                  <span class="text-gray-900 font-medium">info@jlm.com.ng</span>
+                  <span class="text-gray-900 font-medium">support@jlm.com.ng</span>
                 </div>
               </div>
               <!-- Location Card -->
@@ -710,6 +689,7 @@ main {
             $contact_success = false;
             $contact_error = '';
             $contact_formData = [];
+            $allowedContactServices = ['Web Design', 'Video Production', 'Graphics Design', 'Digital Marketing', 'Photography', 'Branding', 'Other'];
             
             // Check if contact form was successfully submitted (for clearing)
             if (isset($_SESSION['show_contact_success']) && $_SESSION['show_contact_success']) {
@@ -735,6 +715,18 @@ main {
                     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
                         $contact_error = 'Security validation failed. Please try again.';
                     } else {
+                        $botCheck = detect_bot_form_submission($_POST, 'website', 3, 86400);
+                        if ($botCheck['is_bot']) {
+                            log_security_event('bot_submission_blocked', 'Blocked contact form bot submission', [
+                                'reason' => $botCheck['reason'],
+                                'email' => $_POST['email'] ?? '',
+                                'path' => $_SERVER['REQUEST_URI'] ?? 'index.php#contact'
+                            ]);
+                            $_SESSION['show_contact_success'] = true;
+                            echo '<script>window.location.href = "' . $_SERVER['REQUEST_URI'] . '?success=1#contact";</script>';
+                            exit;
+                        }
+
                         // Basic validation
                         $fields = ['name', 'email', 'message'];
                         foreach ($fields as $f) {
@@ -743,28 +735,39 @@ main {
                                 break;
                             }
                         }
+                        if (!$contact_error && !validate_email($_POST['email'] ?? '')) {
+                            $contact_error = 'Please enter a valid email address.';
+                        }
+                        if (
+                            !$contact_error &&
+                            !empty($_POST['service']) &&
+                            !in_array($_POST['service'], $allowedContactServices, true)
+                        ) {
+                            $contact_error = 'Invalid service selection.';
+                        }
                 if (!$contact_error) {
                     try {
                         // Generate ticket number
                         $ticketNumber = generate_ticket_number('CT');
-                        
-                        // Save to database
-                        $stmt = $pdo->prepare("INSERT INTO contact_submissions (ticket_number, name, email, phone, service, message, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->execute([
-                            $ticketNumber,
-                            $_POST['name'],
-                            $_POST['email'],
-                            $_POST['phone'] ?? '',
-                            $_POST['service'] ?? '',
-                            $_POST['message'],
-                            'new'
-                        ]);
-                        
-                        // Get the inserted ID
-                        $contactId = $pdo->lastInsertId();
-                        
-                        // Create ticket in tracking system (using new system from functions.php)
-                        create_ticket_tracking($ticketNumber, 'contact', $contactId);
+
+                        if ($pdo) {
+                            $stmt = $pdo->prepare("INSERT INTO contact_submissions (ticket_number, name, email, phone, service, subject, message, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                            $stmt->execute([
+                                $ticketNumber,
+                                sanitize_input($_POST['name']),
+                                sanitize_input($_POST['email']),
+                                sanitize_input($_POST['phone'] ?? ''),
+                                sanitize_input($_POST['service'] ?? ''),
+                                !empty($_POST['service']) ? (sanitize_input($_POST['service']) . ' Enquiry') : 'General Enquiry',
+                                sanitize_input($_POST['message']),
+                                'new'
+                            ]);
+
+                            $contactId = $pdo->lastInsertId();
+                            create_ticket_tracking($ticketNumber, 'contact', $contactId);
+                        } else {
+                            error_log("Contact submission (development mode): " . json_encode($_POST));
+                        }
                         
                         // Enhanced debugging
                         error_log("CONTACT FORM DEBUG - Form submitted successfully");
@@ -777,7 +780,8 @@ main {
                             $_POST['email'],
                             $_POST['phone'] ?? '',
                             $_POST['service'] ?? '',
-                            $_POST['message']
+                            $_POST['message'],
+                            $ticketNumber
                         );
                         
                         // Enhanced debugging
@@ -823,6 +827,11 @@ main {
             <?php endif; ?>
             <form class="space-y-6" method="post" action="#contact">
               <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+              <input type="hidden" name="form_started_at" value="<?php echo time(); ?>">
+              <div style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+                <label for="website">Website</label>
+                <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+              </div>
               <div class="grid md:grid-cols-2 gap-4">
                 <div>
                   <label for="name" class="block mb-1">Full Name *</label>
@@ -873,12 +882,103 @@ main {
     </section>
   </main>
 
+  <!-- Portfolio Modals (Outside the grid and main tag to avoid stacking context issues) -->
+  <?php foreach ($portfolio_items as $cat): 
+    $type = $cat['type'] ?? 'link';
+    $title = htmlspecialchars($cat['title']);
+    $children = get_portfolio_items($cat['id']);
+    if ($type === 'link') continue;
+  ?>
+    <?php if ($type === 'web'): ?>
+      <div id="webModal-<?php echo $cat['id']; ?>" class="fixed inset-0 bg-black bg-opacity-75 flex items-start justify-center z-[9999] p-4 overflow-y-auto portfolio-modal" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 shadow-2xl relative my-8">
+          <button onclick="closeDynamicModal('webModal-<?php echo $cat['id']; ?>')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center"><?php echo $title; ?> Portfolio</h3>
+          <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <?php foreach ($children as $child): ?>
+              <?php $childDisplayImage = get_portfolio_display_image($child); ?>
+              <div class="space-y-3">
+                <div class="flex items-center gap-3 mb-3">
+                  <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs"><?php echo htmlspecialchars((string)($child['category'] ?? 'Portfolio')); ?></span>
+                  <h4 class="text-lg font-semibold text-gray-800"><?php echo htmlspecialchars((string)$child['title']); ?></h4>
+                </div>
+                <?php if (!empty($childDisplayImage)): ?>
+                  <img src="<?php echo htmlspecialchars($childDisplayImage); ?>" alt="<?php echo htmlspecialchars($child['title']); ?>" class="w-full h-48 object-cover rounded-lg shadow-md" />
+                <?php elseif (!empty($child['external_url'])): 
+                  $childParsedUrl = parse_url($child['external_url']);
+                  $childDomain = isset($childParsedUrl['host']) ? preg_replace('/^www\./', '', $childParsedUrl['host']) : 'Website';
+                ?>
+                  <div class="w-full h-48 bg-gradient-to-br from-[#1b2299]/10 to-[#e4306d]/10 rounded-lg shadow-md flex flex-col items-center justify-center border border-[#1b2299]/10">
+                    <img src="https://www.google.com/s2/favicons?domain=<?php echo urlencode($childDomain); ?>&sz=128" alt="Favicon" class="w-16 h-16 rounded-xl shadow-md mb-3 bg-white p-2">
+                    <span class="text-gray-700 font-medium px-2 text-center break-all"><?php echo htmlspecialchars($childDomain); ?></span>
+                  </div>
+                <?php endif; ?>
+                <p class="text-gray-600 text-sm"><?php echo htmlspecialchars((string)$child['description']); ?></p>
+                <a href="<?php echo htmlspecialchars((string)$child['external_url']); ?>" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
+                  Visit Site
+                </a>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+    <?php elseif ($type === 'graphics'): ?>
+      <div id="graphicsModal-<?php echo $cat['id']; ?>" class="fixed inset-0 bg-black bg-opacity-75 flex items-start justify-center z-[9999] p-4 overflow-y-auto portfolio-modal" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 shadow-2xl relative my-8">
+          <button onclick="closeDynamicModal('graphicsModal-<?php echo $cat['id']; ?>')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center"><?php echo $title; ?> Portfolio</h3>
+          <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <?php 
+            $galleryImages = array_map('asset_url', array_column($children, 'image'));
+            foreach ($children as $idx => $child): ?>
+              <div class="space-y-3">
+                <div class="flex items-center gap-3 mb-3">
+                  <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Design</span>
+                  <h4 class="text-lg font-semibold text-gray-800 line-clamp-1"><?php echo htmlspecialchars((string)$child['title']); ?></h4>
+                </div>
+                <img src="<?php echo asset_url($child['image']); ?>" alt="<?php echo htmlspecialchars((string)$child['title']); ?>" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick='openFullscreenGalleryFromList(<?php echo json_encode($galleryImages); ?>, <?php echo $idx; ?>)' />
+                <p class="text-gray-600 text-xs line-clamp-2"><?php echo htmlspecialchars((string)$child['description']); ?></p>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+    <?php elseif ($type === 'music'): ?>
+      <div id="musicModal-<?php echo $cat['id']; ?>" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] p-4 portfolio-modal" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 shadow-2xl relative">
+          <button onclick="closeDynamicModal('musicModal-<?php echo $cat['id']; ?>')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center"><?php echo $title; ?> Showcase</h3>
+          <div class="grid md:grid-cols-2 gap-6">
+            <?php foreach ($children as $child): 
+              $vUrl = (string)($child['external_url'] ?? '');
+              $vId = (strpos($vUrl, 'v=') !== false) ? explode('v=', $vUrl)[1] : (strpos($vUrl, 'youtu.be/') !== false ? explode('youtu.be/', $vUrl)[1] : '');
+              $vId = explode('&', $vId)[0];
+            ?>
+              <div class="space-y-3">
+                <h4 class="text-lg font-semibold text-gray-800 text-center"><?php echo htmlspecialchars((string)$child['title']); ?></h4>
+                <div class="relative w-full" style="padding-bottom: 56.25%;">
+                  <iframe class="absolute top-0 left-0 w-full h-full rounded-lg dynamic-iframe" data-src="https://www.youtube.com/embed/<?php echo $vId; ?>" frameborder="0" allowfullscreen></iframe>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+    <?php endif; ?>
+  <?php endforeach; ?>
+
   <!-- Footer -->
   <footer class="bg-gray-900 text-white">
     <div class="container mx-auto px-4 lg:px-8 py-16 grid lg:grid-cols-4 gap-8">
       <div>
         <div class="flex items-center gap-2 mb-4">
-          <img src="assets/images/jlm.png" alt="JLM Logo" class="h-10 w-auto mx-auto mb-4" />
+          <img src="<?php echo asset_url('assets/images/jlm.png'); ?>" alt="JLM Logo" class="h-10 w-auto mx-auto mb-4" />
         </div>
         <p class="text-gray-300 mb-6 leading-relaxed">Transforming ideas into creative excellence through innovative media production and personalized service across Nigeria and beyond.</p>
         <div class="flex space-x-4">
@@ -928,7 +1028,7 @@ main {
         </ul>
         <div class="mt-8 space-y-3">
           <div class="flex items-center space-x-3 text-gray-300"><span>📞</span><span>+2348150917741</span></div>
-          <div class="flex items-center space-x-3 text-gray-300"><span>✉️</span><span>info@jlm.com.ng</span></div>
+          <div class="flex items-center space-x-3 text-gray-300"><span>✉️</span><span>support@jlm.com.ng</span></div>
           <div class="flex items-center space-x-3 text-gray-300"><span>📍</span><span>Kaduna, Nigeria</span></div>
         </div>
       </div>
@@ -953,10 +1053,11 @@ main {
             Admin
           </a>
         </div>
-        <div class="flex space-x-6 text-sm text-gray-400">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-400">
           <a href="privacy-policy.php" class="hover:text-[#f7de7a] transition-colors">Privacy Policy</a>
           <a href="terms-of-service.php" class="hover:text-[#f7de7a] transition-colors">Terms of Service</a>
           <a href="cookie-policy.php" class="hover:text-[#f7de7a] transition-colors">Cookie Policy</a>
+          <button type="button" onclick="openCookieSettings()" class="hover:text-[#f7de7a] transition-colors bg-transparent border-0 p-0 text-inherit cursor-pointer text-sm font-medium">Cookie Settings</button>
         </div>
       </div>
     </div>
@@ -965,15 +1066,50 @@ main {
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="fixed top-6 right-6 z-[70] space-y-3 max-w-sm"></div>
 
-  <!-- Video Modal -->
-  <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" style="display: none;">
-    <div class="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-2xl relative">
-      <button onclick="closeVideoModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+  <!-- Newsletter Feedback Modal -->
+  <div id="subscriptionFeedbackModal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-slate-950/70 p-4">
+    <div class="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p id="subscriptionFeedbackEyebrow" class="text-xs font-semibold uppercase tracking-[0.24em] text-[#e4306d]">Newsletter</p>
+          <h3 id="subscriptionFeedbackTitle" class="mt-2 text-2xl font-bold text-gray-900">Subscription Update</h3>
+        </div>
+        <button type="button" onclick="closeSubscriptionFeedbackModal()" class="rounded-full border border-gray-200 p-2 text-gray-500 transition hover:border-gray-300 hover:text-gray-700" aria-label="Close subscription feedback modal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="subscriptionFeedbackIconWrap" class="mt-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-green-600">
+        <svg id="subscriptionFeedbackSuccessIcon" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
         </svg>
+        <svg id="subscriptionFeedbackErrorIcon" xmlns="http://www.w3.org/2000/svg" class="hidden h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <p id="subscriptionFeedbackMessage" class="mt-5 text-base leading-7 text-gray-600"></p>
+      <div class="mt-6 flex justify-end">
+        <button type="button" onclick="closeSubscriptionFeedbackModal()" class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1b2299] to-[#e4306d] px-5 py-3 font-semibold text-white transition hover:scale-[1.01]">
+          Continue
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Back to Top Button (single instance for the whole page) -->
+
+  <!-- Shared Modals (Global) -->
+  
+  <!-- Video Modal -->
+  <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" style="display: none;">
+    <div class="bg-white rounded-2xl p-4 max-w-4xl w-full shadow-2xl relative">
+      <button onclick="closeVideoModal()" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
-      <h3 id="videoModalTitle" class="text-xl font-bold text-gray-900 mb-4 text-center"></h3>
+      <h3 id="videoModalTitle" class="text-xl font-bold text-gray-900 mb-4 truncate pr-8">Video Title</h3>
       <div class="relative w-full" style="padding-bottom: 56.25%;">
         <iframe id="videoModalFrame" class="absolute top-0 left-0 w-full h-full rounded-lg" frameborder="0" allowfullscreen></iframe>
       </div>
@@ -981,284 +1117,43 @@ main {
   </div>
 
   <!-- Channel Modal -->
-  <div id="channelModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" style="display: none;">
-    <div class="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl relative">
-      <button onclick="closeChannelModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
+  <div id="channelModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" style="display: none;">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-center relative">
+      <button onclick="closeChannelModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
-      <h3 id="channelModalTitle" class="text-xl font-bold text-gray-900 mb-4 text-center"></h3>
-      <div class="text-center mb-6">
-        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <p class="text-gray-600 mb-4">Visit our YouTube channel to see more of our livestreaming content and creative work.</p>
-        <a id="channelModalLink" href="#" target="_blank" class="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-all duration-200">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-          Open YouTube Channel
-        </a>
+      <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+        <i class="fab fa-youtube text-4xl"></i>
       </div>
-    </div>
-  </div>
-
-  <!-- Web Design Modal -->
-  <div id="webDesignModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-start justify-center z-50 p-4 overflow-y-auto" style="display: none;">
-    <div class="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 shadow-2xl relative my-8">
-      <button onclick="closeWebDesignModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-      <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">Web Design Portfolio</h3>
-      <div class="grid md:grid-cols-2 gap-6">
-                         <!-- JLM Website -->
-                 <div class="space-y-3">
-                   <div class="flex items-center gap-3 mb-3">
-                     <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Corporate</span>
-                     <h4 class="text-lg font-semibold text-gray-800">JLM.com.ng</h4>
-                   </div>
-                   <img src="https://api.microlink.io?url=https://jlm.com.ng&screenshot=true&meta=false&embed=screenshot.url" alt="JLM Website" class="w-full h-48 object-cover rounded-lg shadow-md" />
-          <p class="text-gray-600 text-sm">Creative media company website showcasing our own brand and services.</p>
-          <a href="https://jlm.com.ng" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Visit Site
-          </a>
-        </div>
-        
-                         <!-- NaijaReadFest -->
-                 <div class="space-y-3">
-                   <div class="flex items-center gap-3 mb-3">
-                     <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs">Events</span>
-                     <h4 class="text-lg font-semibold text-gray-800">NaijaReadFest.ng</h4>
-                   </div>
-                   <img src="https://api.microlink.io?url=https://naijareadfest.ng&screenshot=true&meta=false&embed=screenshot.url" alt="NaijaReadFest Website" class="w-full h-48 object-cover rounded-lg shadow-md" />
-          <p class="text-gray-600 text-sm">Literary festival platform connecting readers and authors across Nigeria.</p>
-          <a href="https://naijareadfest.ng" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Visit Site
-          </a>
-        </div>
-        
-                         <!-- NigeriaReads -->
-                 <div class="space-y-3">
-                   <div class="flex items-center gap-3 mb-3">
-                     <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Education</span>
-                     <h4 class="text-lg font-semibold text-gray-800">NigeriaReads.ng</h4>
-                   </div>
-                   <img src="https://api.microlink.io?url=https://nigeriareads.ng&screenshot=true&meta=false&embed=screenshot.url" alt="NigeriaReads Website" class="w-full h-48 object-cover rounded-lg shadow-md" />
-          <p class="text-gray-600 text-sm">Reading community platform promoting literacy and education in Nigeria.</p>
-          <a href="https://nigeriareads.ng" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Visit Site
-          </a>
-        </div>
-        
-                         <!-- BandrSpices -->
-                 <div class="space-y-3">
-                   <div class="flex items-center gap-3 mb-3">
-                     <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs">E-commerce</span>
-                     <h4 class="text-lg font-semibold text-gray-800">BandrSpices.com</h4>
-                   </div>
-                   <img src="https://api.microlink.io?url=https://bandrspices.com&screenshot=true&meta=false&embed=screenshot.url" alt="BandrSpices Website" class="w-full h-48 object-cover rounded-lg shadow-md" />
-          <p class="text-gray-600 text-sm">Spice trading platform connecting farmers and buyers across the region.</p>
-          <a href="https://bandrspices.com" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Visit Site
-          </a>
-        </div>
-        
-                         <!-- KrossKhana -->
-                 <div class="space-y-3">
-                   <div class="flex items-center gap-3 mb-3">
-                     <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Entertainment</span>
-                     <h4 class="text-lg font-semibold text-gray-800">KrossKhana.org</h4>
-                   </div>
-                   <img src="https://api.microlink.io?url=https://krosskhana.org&screenshot=true&meta=false&embed=screenshot.url" alt="KrossKhana Website" class="w-full h-48 object-cover rounded-lg shadow-md" />
-          <p class="text-gray-600 text-sm">Entertainment platform showcasing creative content and media productions.</p>
-          <a href="https://krosskhana.org" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white px-4 py-2 rounded-lg font-medium hover:from-[#151d7a] hover:to-[#c2285a] transition-all duration-200 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Visit Site
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Graphics Design Modal -->
-  <div id="graphicsModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-start justify-center z-50 p-4 overflow-y-auto" style="display: none;">
-    <div class="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 shadow-2xl relative my-8">
-      <button onclick="closeGraphicsModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-      <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">Graphics Design Portfolio</h3>
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 <!-- Portfolio Image 1 -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Creative Design 1</h4>
-           </div>
-           <img src="assets/images/portfolio/1.jpeg" alt="Graphics Design Portfolio 1" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(0)" />
-           <p class="text-gray-600 text-sm">Professional graphics design showcasing creative visual solutions.</p>
-         </div>
-        
-                 <!-- Portfolio Image 2 -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Creative Design 2</h4>
-           </div>
-           <img src="assets/images/portfolio/2.jpeg" alt="Graphics Design Portfolio 2" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(1)" />
-           <p class="text-gray-600 text-sm">Innovative graphics design with modern visual elements and creative concepts.</p>
-         </div>
-        
-                 <!-- Portfolio Image 3 -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Creative Design 3</h4>
-           </div>
-           <img src="assets/images/portfolio/3.jpeg" alt="Graphics Design Portfolio 3" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(2)" />
-           <p class="text-gray-600 text-sm">Professional graphics design with attention to detail and visual impact.</p>
-         </div>
-        
-                 <!-- Portfolio Image 4 -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Creative Design 4</h4>
-           </div>
-           <img src="assets/images/portfolio/4.jpeg" alt="Graphics Design Portfolio 4" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(3)" />
-           <p class="text-gray-600 text-sm">Exceptional graphics design demonstrating creativity and technical skill.</p>
-         </div>
-        
-                 <!-- Portfolio Image 5 - Danlami -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#1b2299]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Danlami Design</h4>
-           </div>
-           <img src="assets/images/portfolio/Danlami.png" alt="Danlami Graphics Design" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(4)" />
-           <p class="text-gray-600 text-sm">Professional graphics design with modern visual elements and creative concepts.</p>
-         </div>
-        
-                 <!-- Portfolio Image 6 - Decanny -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Decanny Design</h4>
-           </div>
-           <img src="assets/images/portfolio/Decanny.jpg" alt="Decanny Graphics Design" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(5)" />
-           <p class="text-gray-600 text-sm">Innovative graphics design showcasing creative visual solutions and branding.</p>
-         </div>
-        
-                 <!-- Portfolio Image 7 - Hello May -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#f7de7a]/20 text-[#1b2299] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Hello May Design</h4>
-           </div>
-           <img src="assets/images/portfolio/Hello May.png" alt="Hello May Graphics Design" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(6)" />
-           <p class="text-gray-600 text-sm">Creative graphics design with attention to detail and visual impact.</p>
-         </div>
-        
-                 <!-- Portfolio Image 8 - Eid Mubarak -->
-         <div class="space-y-3">
-           <div class="flex items-center gap-3 mb-3">
-             <span class="inline-block bg-[#e4306d]/20 text-[#e4306d] px-3 py-1 rounded-full text-xs">Graphics Design</span>
-             <h4 class="text-lg font-semibold text-gray-800">Eid Mubarak Design</h4>
-           </div>
-           <img src="assets/images/portfolio/Eid Mubarak.jpg" alt="Eid Mubarak Graphics Design" class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer hover:scale-105 transition-transform duration-300" onclick="openFullscreenGallery(7)" />
-           <p class="text-gray-600 text-sm">Exceptional graphics design demonstrating creativity and cultural elements.</p>
-         </div>
-        
-        
-      </div>
+      <h3 id="channelModalTitle" class="text-2xl font-bold text-gray-900 mb-2">Channel Name</h3>
+      <p class="text-gray-600 mb-8">Visit our YouTube channel for more content.</p>
+      <a id="channelModalLink" href="#" target="_blank" class="block w-full py-4 bg-[#ff0000] text-white rounded-xl font-bold hover:bg-[#cc0000] transition-colors shadow-lg shadow-red-200">
+        Open YouTube Channel
+      </a>
     </div>
   </div>
 
   <!-- Fullscreen Gallery Modal -->
   <div id="fullscreenGalleryModal" class="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-[60] p-4" style="display: none;">
     <div class="relative w-full h-full flex items-center justify-center">
-      <!-- Close Button -->
       <button onclick="closeFullscreenGallery()" class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
-      
-      <!-- Previous Button -->
       <button onclick="previousImage()" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
       </button>
-      
-      <!-- Next Button -->
       <button onclick="nextImage()" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </button>
-      
-      <!-- Image Container -->
       <div class="relative w-full h-full flex items-center justify-center">
         <img id="fullscreenImage" src="" alt="Fullscreen Portfolio Image" class="max-w-full max-h-full object-contain" />
-        
-        <!-- Image Counter -->
         <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 rounded-full px-4 py-2 text-sm">
-          <span id="imageCounter">1 / 4</span>
+          <span id="imageCounter">1 / 1</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Music Modal -->
-  <div id="musicModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" style="display: none;">
-    <div class="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 shadow-2xl relative">
-      <button onclick="closeMusicModal()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors z-10">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-      <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">Music Production Showcase</h3>
-      <div class="grid md:grid-cols-2 gap-6">
-        <!-- First Music Video -->
-        <div class="space-y-3">
-          <h4 class="text-lg font-semibold text-gray-800 text-center">Music Production 1</h4>
-          <div class="relative w-full" style="padding-bottom: 56.25%;">
-            <iframe id="musicModalFrame1" class="absolute top-0 left-0 w-full h-full rounded-lg" frameborder="0" allowfullscreen></iframe>
-          </div>
-        </div>
-        <!-- Second Music Video -->
-        <div class="space-y-3">
-          <h4 class="text-lg font-semibold text-gray-800 text-center">Music Production 2</h4>
-          <div class="relative w-full" style="padding-bottom: 56.25%;">
-            <iframe id="musicModalFrame2" class="absolute top-0 left-0 w-full h-full rounded-lg" frameborder="0" allowfullscreen></iframe>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Back to Top Button (single instance for the whole page) -->
   <button id="backToTopBtn" class="fixed bottom-8 right-8 z-50 bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-all duration-300 hidden" aria-label="Back to Top">
     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
   </button>
@@ -1425,6 +1320,42 @@ main {
       }
     }
 
+    function showSubscriptionFeedbackModal(title, message, type = 'success') {
+      const modal = document.getElementById('subscriptionFeedbackModal');
+      const titleEl = document.getElementById('subscriptionFeedbackTitle');
+      const messageEl = document.getElementById('subscriptionFeedbackMessage');
+      const eyebrowEl = document.getElementById('subscriptionFeedbackEyebrow');
+      const wrapEl = document.getElementById('subscriptionFeedbackIconWrap');
+      const successIcon = document.getElementById('subscriptionFeedbackSuccessIcon');
+      const errorIcon = document.getElementById('subscriptionFeedbackErrorIcon');
+
+      if (!modal || !titleEl || !messageEl || !eyebrowEl || !wrapEl || !successIcon || !errorIcon) {
+        showToast(message, type === 'success' ? 'success' : 'error');
+        return;
+      }
+
+      titleEl.textContent = title || 'Subscription Update';
+      messageEl.textContent = message || '';
+      eyebrowEl.textContent = type === 'success' ? 'Newsletter' : 'Attention';
+
+      wrapEl.className = type === 'success'
+        ? 'mt-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-green-600'
+        : 'mt-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600';
+
+      successIcon.classList.toggle('hidden', type !== 'success');
+      errorIcon.classList.toggle('hidden', type === 'success');
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSubscriptionFeedbackModal() {
+      const modal = document.getElementById('subscriptionFeedbackModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
     // Portfolio modal functions
     function openVideoModal(videoUrl, title) {
       console.log('Opening video modal:', videoUrl, title);
@@ -1498,120 +1429,73 @@ main {
       document.body.style.overflow = 'auto';
     }
 
-    function openWebDesignModal() {
-      console.log('Opening web design modal');
-      const modal = document.getElementById('webDesignModal');
-      
-      if (!modal) {
-        console.error('Web design modal elements not found');
-        return;
-      }
+    function openDynamicModal(modalId) {
+      console.log('Opening dynamic modal:', modalId);
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
       
       modal.style.display = 'flex';
       modal.classList.remove('hidden');
-      
-      // Prevent body scroll
       document.body.style.overflow = 'hidden';
+      
+      // Start any videos in the modal
+      modal.querySelectorAll('.dynamic-iframe').forEach(iframe => {
+        if (iframe.dataset.src) {
+          iframe.src = iframe.dataset.src;
+        }
+      });
     }
 
-    function closeWebDesignModal() {
-      const modal = document.getElementById('webDesignModal');
+    function closeDynamicModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
       
-      if (modal) {
-        modal.style.display = 'none';
-        modal.classList.add('hidden');
-      }
-      
-      // Restore body scroll
+      modal.style.display = 'none';
+      modal.classList.add('hidden');
       document.body.style.overflow = 'auto';
+      
+      // Stop any videos in the modal
+      modal.querySelectorAll('.dynamic-iframe').forEach(iframe => {
+        iframe.src = '';
+      });
     }
 
-    function openGraphicsModal() {
-      console.log('Opening graphics modal');
-      const modal = document.getElementById('graphicsModal');
+    // Keep legacy modal functions for backward compatibility or simple one-off modals
+    function openVideoModal(videoUrl, title) {
+      const modal = document.getElementById('videoModal');
+      const iframe = document.getElementById('videoModalFrame');
+      const titleElement = document.getElementById('videoModalTitle');
+      if (!modal || !iframe) return;
       
-      if (!modal) {
-        console.error('Graphics modal elements not found');
-        return;
-      }
+      const videoId = videoUrl.split('v=')[1] || videoUrl.split('youtu.be/')[1];
+      const embedUrl = `https://www.youtube.com/embed/${videoId.split('&')[0]}`;
       
+      if (titleElement) titleElement.textContent = title;
+      iframe.src = embedUrl;
       modal.style.display = 'flex';
       modal.classList.remove('hidden');
-      
-      // Prevent body scroll
       document.body.style.overflow = 'hidden';
     }
 
-    function closeGraphicsModal() {
-      const modal = document.getElementById('graphicsModal');
-      
+    function closeVideoModal() {
+      const modal = document.getElementById('videoModal');
+      const iframe = document.getElementById('videoModalFrame');
       if (modal) {
         modal.style.display = 'none';
         modal.classList.add('hidden');
       }
-      
-      // Restore body scroll
-      document.body.style.overflow = 'auto';
-    }
-
-    function openMusicModal() {
-      console.log('Opening music modal');
-      const modal = document.getElementById('musicModal');
-      const iframe1 = document.getElementById('musicModalFrame1');
-      const iframe2 = document.getElementById('musicModalFrame2');
-      
-      if (!modal || !iframe1 || !iframe2) {
-        console.error('Music modal elements not found');
-        return;
-      }
-      
-      // Convert YouTube URLs to embed format
-      const videoId1 = 'oGYlX4YNN9k';
-      const videoId2 = 'FLfEO_KZnKs';
-      const embedUrl1 = `https://www.youtube.com/embed/${videoId1}`;
-      const embedUrl2 = `https://www.youtube.com/embed/${videoId2}`;
-      
-      iframe1.src = embedUrl1;
-      iframe2.src = embedUrl2;
-      modal.style.display = 'flex';
-      modal.classList.remove('hidden');
-      
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeMusicModal() {
-      const modal = document.getElementById('musicModal');
-      const iframe1 = document.getElementById('musicModalFrame1');
-      const iframe2 = document.getElementById('musicModalFrame2');
-      
-      if (modal) {
-        modal.style.display = 'none';
-        modal.classList.add('hidden');
-      }
-      if (iframe1) {
-        iframe1.src = ''; // Stop video playback
-      }
-      if (iframe2) {
-        iframe2.src = ''; // Stop video playback
-      }
-      
-      // Restore body scroll
+      if (iframe) iframe.src = '';
       document.body.style.overflow = 'auto';
     }
 
     // Fullscreen Gallery Variables
     let currentImageIndex = 0;
-    const portfolioImages = [
-      'assets/images/portfolio/1.jpeg',
-      'assets/images/portfolio/2.jpeg',
-      'assets/images/portfolio/3.jpeg',
-      'assets/images/portfolio/4.jpeg',
-      'assets/images/portfolio/Danlami.png',
-      'assets/images/portfolio/Decanny.jpg',
-      'assets/images/portfolio/Hello May.png',
-      'assets/images/portfolio/Eid Mubarak.jpg'
-    ];
+    let portfolioImages = [];
+
+    function openFullscreenGalleryFromList(images, index) {
+      portfolioImages = images;
+      openFullscreenGallery(index);
+    }
 
     function openFullscreenGallery(index) {
       currentImageIndex = index;
@@ -1619,29 +1503,21 @@ main {
       const image = document.getElementById('fullscreenImage');
       const counter = document.getElementById('imageCounter');
       
-      if (!modal || !image || !counter) {
-        console.error('Fullscreen gallery elements not found');
-        return;
-      }
+      if (!modal || !image || !counter) return;
       
       image.src = portfolioImages[currentImageIndex];
       counter.textContent = `${currentImageIndex + 1} / ${portfolioImages.length}`;
       modal.style.display = 'flex';
       modal.classList.remove('hidden');
-      
-      // Prevent body scroll
       document.body.style.overflow = 'hidden';
     }
 
     function closeFullscreenGallery() {
       const modal = document.getElementById('fullscreenGalleryModal');
-      
       if (modal) {
         modal.style.display = 'none';
         modal.classList.add('hidden');
       }
-      
-      // Restore body scroll
       document.body.style.overflow = 'auto';
     }
 
@@ -1680,41 +1556,27 @@ main {
 
     // Close modals when clicking outside
     document.addEventListener('click', function(event) {
+      if (event.target.classList.contains('portfolio-modal')) {
+        closeDynamicModal(event.target.id);
+      }
+      
       const videoModal = document.getElementById('videoModal');
       const channelModal = document.getElementById('channelModal');
-      const webDesignModal = document.getElementById('webDesignModal');
-      const graphicsModal = document.getElementById('graphicsModal');
-      const musicModal = document.getElementById('musicModal');
       const fullscreenGalleryModal = document.getElementById('fullscreenGalleryModal');
       
-      if (videoModal && event.target === videoModal) {
-        closeVideoModal();
-      }
-      if (channelModal && event.target === channelModal) {
-        closeChannelModal();
-      }
-      if (webDesignModal && event.target === webDesignModal) {
-        closeWebDesignModal();
-      }
-      if (graphicsModal && event.target === graphicsModal) {
-        closeGraphicsModal();
-      }
-      if (musicModal && event.target === musicModal) {
-        closeMusicModal();
-      }
-      if (fullscreenGalleryModal && event.target === fullscreenGalleryModal) {
-        closeFullscreenGallery();
-      }
+      if (videoModal && event.target === videoModal) closeVideoModal();
+      if (channelModal && event.target === channelModal) closeChannelModal();
+      if (fullscreenGalleryModal && event.target === fullscreenGalleryModal) closeFullscreenGallery();
     });
 
-    // Close modal with Escape key and keyboard navigation for fullscreen gallery
+    // Close modal with Escape key
     document.addEventListener('keydown', function(event) {
       if (event.key === 'Escape') {
+        document.querySelectorAll('.portfolio-modal').forEach(m => {
+          if (!m.classList.contains('hidden')) closeDynamicModal(m.id);
+        });
         closeVideoModal();
         closeChannelModal();
-        closeWebDesignModal();
-        closeGraphicsModal();
-        closeMusicModal();
         closeFullscreenGallery();
       }
       
@@ -1846,18 +1708,24 @@ main {
             },
             body: 'email=' + encodeURIComponent(email)
           })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              showToast(data.message, 'success');
+          .then(async (response) => {
+            const data = await response.json();
+            return { response, data };
+          })
+          .then(({ response, data }) => {
+            showSubscriptionFeedbackModal(
+              data.title || (data.success ? 'Subscription Update' : 'Subscription Problem'),
+              data.message || 'Unable to complete your request right now.',
+              data.success ? 'success' : 'error'
+            );
+
+            if (response.ok && data.success) {
               newsletterEmail.value = '';
-            } else {
-              showToast(data.message, 'error');
             }
           })
           .catch(error => {
             console.error('Error:', error);
-            showToast('An error occurred. Please try again.', 'error');
+            showSubscriptionFeedbackModal('Unable To Subscribe', 'An error occurred. Please try again.', 'error');
           })
           .finally(() => {
             // Reset button state
@@ -1868,5 +1736,6 @@ main {
       }
     });
   </script>
+  <?php require_once __DIR__ . '/includes/cookie_consent.php'; ?>
 </body>
 </html> 

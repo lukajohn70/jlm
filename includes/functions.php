@@ -119,8 +119,24 @@ function send_email($to, $subject, $message) {
     try {
         require_once __DIR__ . '/../vendor/autoload.php';
         require_once __DIR__ . '/../config/email_utils.php';
-        
-        return sendEmail($to, $subject, $message);
+
+        $normalizedMessage = (string) $message;
+        $looksLikeHtmlDocument = preg_match('/<html[\s>]|<body[\s>]/i', $normalizedMessage) === 1;
+        $containsHtmlTags = preg_match('/<[^>]+>/', $normalizedMessage) === 1;
+
+        if (!$looksLikeHtmlDocument) {
+            if ($containsHtmlTags) {
+                $normalizedMessage = getCompleteEmailTemplate($subject, $normalizedMessage);
+            } else {
+                $formattedMessage = nl2br(htmlspecialchars($normalizedMessage, ENT_QUOTES, 'UTF-8'));
+                $normalizedMessage = getCompleteEmailTemplate(
+                    $subject,
+                    '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;color:#1f2937;">' . $formattedMessage . '</div>'
+                );
+            }
+        }
+
+        return sendEmail($to, $subject, $normalizedMessage);
     } catch (Exception $e) {
         error_log("Email sending failed: " . $e->getMessage());
         return false;
@@ -337,7 +353,7 @@ function process_contact_form($data) {
         $email_message .= "Subject: $subject\n";
         $email_message .= "Message: $message\n";
         
-        send_email('info@jlm.com.ng', 'New Contact Form Submission', $email_message);
+        send_email(defined('ADMIN_EMAIL') ? ADMIN_EMAIL : 'support@jlm.com.ng', 'New Contact Form Submission', $email_message);
         
         return ['success' => true, 'message' => 'Thank you! Your message has been sent successfully. We\'ll get back to you soon.'];
         
@@ -416,7 +432,7 @@ function process_booking_form($data) {
         if ($timeline) $email_message .= "Timeline: $timeline\n";
         if ($hearAbout) $email_message .= "How they heard about us: $hearAbout\n";
         
-        send_email('info@jlm.com.ng', 'New Booking Consultation Request', $email_message);
+        send_email(defined('ADMIN_EMAIL') ? ADMIN_EMAIL : 'support@jlm.com.ng', 'New Booking Consultation Request', $email_message);
         
         return ['success' => true, 'message' => 'Thank you! Your booking request has been submitted successfully. We\'ll contact you soon to confirm your consultation.'];
         
@@ -461,6 +477,7 @@ function process_testimonial_form($data) {
         // Insert into database
         $stmt = $pdo->prepare('INSERT INTO testimonials (ticket_number, name, role, company, rating, text, status) VALUES (?, ?, ?, ?, ?, ?, "pending")');
         $stmt->execute([$ticket_number, $name, $role, $company, $rating, $text]);
+        cache_delete('approved_testimonials_10');
         
         // Get the inserted ID for ticket tracking
         $form_id = $pdo->lastInsertId();
@@ -479,7 +496,7 @@ function process_testimonial_form($data) {
         $email_message .= "Please review and approve/reject this testimonial in the admin panel.\n";
         $email_message .= "Admin Panel: " . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . "://$_SERVER[HTTP_HOST]/admin_dashboard.php?tab=testimonials";
         
-        send_email('admin@jlm.com.ng', 'New Testimonial Submission - Review Required', $email_message);
+        send_email(defined('ADMIN_EMAIL') ? ADMIN_EMAIL : 'support@jlm.com.ng', 'New Testimonial Submission - Review Required', $email_message);
         
         return ['success' => true, 'message' => 'Thank you! Your testimonial has been submitted and will be reviewed before publishing.'];
         
@@ -495,6 +512,19 @@ function process_testimonial_form($data) {
  * @return array Array of testimonials
  */
 function get_approved_testimonials($limit = 10) {
+    if (defined('DEVELOPMENT_MODE') && DEVELOPMENT_MODE) {
+        global $pdo;
+        try {
+            $stmt = $pdo->prepare('SELECT * FROM testimonials WHERE status = "approved" ORDER BY created_at DESC LIMIT :limit');
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Error fetching testimonials: " . $e->getMessage());
+            return [];
+        }
+    }
+
     // Use caching for better performance
     $cache_key = "approved_testimonials_$limit";
     $cached_result = cache_get($cache_key);
@@ -523,26 +553,85 @@ function get_approved_testimonials($limit = 10) {
 
 /**
  * Get portfolio items for display
- * @param string $category Optional category filter
+ * @param mixed $parent_id Parent ID to filter by. NULL for main categories, 'all' for everything, or INT for specific children.
  * @param int $limit Number of items to return
  * @return array Array of portfolio items
  */
-function get_portfolio_items($category = null, $limit = 12) {
+function get_portfolio_items($parent_id = null, $limit = 100) {
     global $pdo;
     
     try {
-        if ($category) {
-            $stmt = $pdo->prepare('SELECT * FROM portfolio WHERE category = ? ORDER BY created_at DESC LIMIT ?');
-            $stmt->execute([$category, $limit]);
+        if ($parent_id === 'all') {
+            $stmt = $pdo->prepare('SELECT * FROM portfolio ORDER BY sort_order ASC, created_at DESC LIMIT :limit');
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+        } elseif ($parent_id === null) {
+            $stmt = $pdo->prepare('SELECT * FROM portfolio WHERE parent_id IS NULL ORDER BY sort_order ASC, created_at DESC LIMIT :limit');
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
         } else {
-            $stmt = $pdo->prepare('SELECT * FROM portfolio ORDER BY created_at DESC LIMIT ?');
-            $stmt->execute([$limit]);
+            $stmt = $pdo->prepare('SELECT * FROM portfolio WHERE parent_id = :parent_id ORDER BY sort_order ASC, created_at DESC LIMIT :limit');
+            $stmt->bindValue(':parent_id', (int)$parent_id, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
         }
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Error fetching portfolio items: " . $e->getMessage());
         return [];
     }
+}
+
+/**
+ * Extract a YouTube video ID from a URL when present.
+ * @param string $url
+ * @return string|null
+ */
+function get_youtube_video_id($url) {
+    $url = trim((string) $url);
+    if ($url === '') {
+        return null;
+    }
+
+    if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i', $url, $matches)) {
+        return $matches[1];
+    }
+
+    return null;
+}
+
+/**
+ * Build a preview image URL for a portfolio external link.
+ * @param string $url
+ * @return string|null
+ */
+function get_portfolio_link_preview_image($url) {
+    $url = trim((string) $url);
+    if ($url === '' || !preg_match('/^https?:\/\//i', $url)) {
+        return null;
+    }
+
+    $youtubeId = get_youtube_video_id($url);
+    if ($youtubeId) {
+        return 'https://img.youtube.com/vi/' . rawurlencode($youtubeId) . '/hqdefault.jpg';
+    }
+
+    return 'https://s.wordpress.com/mshots/v1/' . rawurlencode($url) . '?w=1200';
+}
+
+/**
+ * Resolve the image that should be displayed for a portfolio item.
+ * Falls back to the external link preview when no thumbnail is stored.
+ * @param array $item
+ * @return string|null
+ */
+function get_portfolio_display_image($item) {
+    $image = trim((string) ($item['image'] ?? ''));
+    if ($image !== '') {
+        return $image;
+    }
+
+    return get_portfolio_link_preview_image($item['external_url'] ?? '');
 }
 
 
@@ -600,6 +689,49 @@ function validate_file_upload($file, $options = []) {
 }
 
 /**
+ * Generate absolute URL for an asset
+ * @param string $path Relative path to the asset (e.g. 'assets/images/logo.png')
+ * @return string Absolute URL
+ */
+function asset_url($path) {
+    $path = (string)$path;
+    if (strpos($path, 'http') === 0 || strpos($path, '//') === 0) {
+        return $path;
+    }
+
+    $path = ltrim($path, '/');
+
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $scriptDir = rtrim(dirname($scriptName), '/');
+    if ($scriptDir === '.' || $scriptDir === '/') {
+        $scriptDir = '';
+    }
+
+    $configuredBasePath = trim((string) getenv('JLM_BASE_PATH'));
+    if ($configuredBasePath !== '') {
+        $configuredBasePath = '/' . trim($configuredBasePath, '/');
+        if ($configuredBasePath === '/') {
+            $configuredBasePath = '';
+        }
+    } else {
+        $configuredBasePath = $scriptDir;
+    }
+
+    $siteUrl = trim((string) getenv('JLM_SITE_URL'));
+    if ($host !== '') {
+        $origin = $scheme . '://' . $host;
+    } elseif ($siteUrl !== '') {
+        $origin = rtrim($siteUrl, '/');
+    } else {
+        $origin = '';
+    }
+
+    return rtrim($origin . $configuredBasePath, '/') . '/' . $path;
+}
+
+/**
  * Log user activity
  * @param int $user_id User ID
  * @param string $action Action performed
@@ -624,4 +756,48 @@ function log_activity($user_id, $action, $details = '') {
         error_log("Failed to log activity: " . $e->getMessage());
     }
 }
-?> 
+
+/**
+ * Retrieve user's cookie consent preferences from request cookie
+ * Compliant with GDPR / ePrivacy / NDPA 2023
+ * @return array|null Returns array of consent choices or null if not yet configured
+ */
+function jlm_get_cookie_consent() {
+    if (!isset($_COOKIE['jlm_cookie_consent'])) {
+        return null;
+    }
+    $raw = (string)$_COOKIE['jlm_cookie_consent'];
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        $data = json_decode(rawurldecode($raw), true);
+    }
+    if (!is_array($data)) {
+        return null;
+    }
+    return [
+        'version' => (string)($data['version'] ?? '1.0'),
+        'necessary' => true,
+        'functional' => !empty($data['functional']),
+        'analytics' => !empty($data['analytics']),
+        'marketing' => !empty($data['marketing']),
+        'timestamp' => (string)($data['timestamp'] ?? ''),
+    ];
+}
+
+/**
+ * Check if the user has given consent for a specific category of cookies
+ * @param string $category 'necessary'|'functional'|'analytics'|'marketing'
+ * @return bool
+ */
+function jlm_has_cookie_consent($category = 'necessary') {
+    $category = strtolower(trim((string)$category));
+    if ($category === 'necessary' || $category === 'essential') {
+        return true;
+    }
+    $consent = jlm_get_cookie_consent();
+    if ($consent === null) {
+        return false;
+    }
+    return !empty($consent[$category]);
+}
+

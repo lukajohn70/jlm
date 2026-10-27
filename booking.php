@@ -26,6 +26,21 @@ if (!isset($_SESSION['csrf_token'])) {
 $success = false;
 $errors = [];
 $formData = [];
+$allowedServiceKeys = [
+    'video-production',
+    'music-production',
+    'livestreaming',
+    'motion-graphics',
+    'branding',
+    'web-design',
+    'social-media',
+    'photography',
+    'consultation'
+];
+$allowedConsultationMethods = ['video-call', 'phone-call', 'in-person', 'email'];
+$allowedBudgetRanges = ['under-1000', '1000-5000', '5000-10000', '10000-25000', 'over-25000', 'discuss'];
+$allowedTimelines = ['asap', '1-2-weeks', '1-month', '2-3-months', '3-6-months', 'flexible'];
+$allowedHearAboutOptions = ['google', 'social-media', 'referral', 'portfolio', 'advertisement', 'event', 'other'];
 
 // Check if form was successfully submitted (for clearing)
 if (isset($_GET['success']) && $_GET['success'] == '1') {
@@ -48,11 +63,54 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
         if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
             $errors[] = 'Security validation failed. Please try again.';
         } else {
+        $botCheck = detect_bot_form_submission($_POST, 'website', 3, 86400);
+        if ($botCheck['is_bot']) {
+            log_security_event('bot_submission_blocked', 'Blocked booking form bot submission', [
+                'reason' => $botCheck['reason'],
+                'email' => $_POST['email'] ?? '',
+                'path' => $_SERVER['REQUEST_URI'] ?? 'booking.php'
+            ]);
+
+            // Return success-like response so bots cannot infer validation rules.
+            $_SESSION['booking_success'] = true;
+            header('Location: ' . $_SERVER['PHP_SELF'] . '?success=1');
+            exit;
+        }
+
         $required = ['firstName', 'lastName', 'email', 'services', 'projectDescription', 'consultationDate', 'consultationTime', 'consultationMethod'];
         foreach ($required as $field) {
             if (empty($_POST[$field])) {
                 $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is required.';
             }
+        }
+
+        if (!validate_email($_POST['email'] ?? '')) {
+            $errors[] = 'Please enter a valid email address.';
+        }
+
+        if (!isset($_POST['services']) || !is_array($_POST['services'])) {
+            $errors[] = 'Please select at least one valid service.';
+        } else {
+            $invalidServices = array_diff($_POST['services'], $allowedServiceKeys);
+            if (!empty($invalidServices)) {
+                $errors[] = 'Invalid service selection detected.';
+            }
+        }
+
+        if (!in_array($_POST['consultationMethod'] ?? '', $allowedConsultationMethods, true)) {
+            $errors[] = 'Invalid consultation method selected.';
+        }
+
+        if (!empty($_POST['budgetRange']) && !in_array($_POST['budgetRange'], $allowedBudgetRanges, true)) {
+            $errors[] = 'Invalid budget range selected.';
+        }
+
+        if (!empty($_POST['timeline']) && !in_array($_POST['timeline'], $allowedTimelines, true)) {
+            $errors[] = 'Invalid timeline selected.';
+        }
+
+        if (!empty($_POST['hearAbout']) && !in_array($_POST['hearAbout'], $allowedHearAboutOptions, true)) {
+            $errors[] = 'Invalid referral source selected.';
         }
         
         if (empty($errors)) {
@@ -68,16 +126,16 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                     $stmt = $pdo->prepare("INSERT INTO booking_submissions (ticket_number, name, email, phone, service, project_description, datetime, consultation_method, budget, timeline, hear_about, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
                     $stmt->execute([
                         $ticketNumber,
-                        $fullName,
-                        $_POST['email'],
-                        $_POST['phone'] ?? '',
-                        is_array($_POST['services']) ? implode(', ', $_POST['services']) : $_POST['services'],
-                        $_POST['projectDescription'],
+                        sanitize_input($fullName),
+                        sanitize_input($_POST['email']),
+                        sanitize_input($_POST['phone'] ?? ''),
+                        implode(', ', $_POST['services']),
+                        sanitize_input($_POST['projectDescription']),
                         $consultationDateTime,
-                        $_POST['consultationMethod'],
-                        $_POST['budgetRange'] ?? '',
-                        $_POST['timeline'] ?? '',
-                        $_POST['hearAbout'] ?? ''
+                        sanitize_input($_POST['consultationMethod']),
+                        sanitize_input($_POST['budgetRange'] ?? ''),
+                        sanitize_input($_POST['timeline'] ?? ''),
+                        sanitize_input($_POST['hearAbout'] ?? '')
                     ]);
                     
                     // Get the inserted ID
@@ -112,7 +170,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') 
                         $consultationDateTime,
                         $_POST['consultationMethod'],
                         $_POST['budgetRange'] ?? '',
-                        $_POST['timeline'] ?? ''
+                        $_POST['timeline'] ?? '',
+                        $ticketNumber
                     );
                     
                     // Log email results for debugging
@@ -757,6 +816,11 @@ $page_description = 'Ready to start your creative project? Book a consultation w
     <div class="booking-card">
         <form method="POST" action="" id="bookingForm">
             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <input type="hidden" name="form_started_at" value="<?php echo time(); ?>">
+            <div style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+                <label for="website">Website</label>
+                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+            </div>
             
             <!-- Error Messages -->
             <?php if (!empty($errors)): ?>
@@ -1074,5 +1138,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<?php require_once __DIR__ . '/includes/cookie_consent.php'; ?>
 </body>
 </html> 

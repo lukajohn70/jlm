@@ -1,0 +1,13 @@
+# JLM Production Apache Configuration (jlm.com.ng)
+RewriteEngine On
+
+# Set base to root on the online server
+RewriteBase /
+
+# Standard Apache ErrorDocument fallback
+ErrorDocument 404 /404.php
+
+# Dynamic URL Rewriter fallback (retains requested URL in address bar)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . 404.php [L]

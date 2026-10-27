@@ -5,16 +5,11 @@
  */
 
 session_start();
+require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/ticket_utils.php';
-
-// Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header('Location: login.php');
-    exit;
-}
-
-$userId = $_SESSION['user_id'];
+$admin_user = require_admin_auth();
+$userId = $admin_user['id'];
 $error = null;
 $success = null;
 

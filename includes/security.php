@@ -283,6 +283,101 @@ function detect_suspicious_activity() {
 }
 
 /**
+ * Detect likely bot submissions using a hidden honeypot field and timing checks.
+ * @param array $post Incoming POST data
+ * @param string $honeypot_field Hidden field name expected to stay empty
+ * @param int $min_submit_seconds Minimum realistic submit time in seconds
+ * @param int $max_submit_age Maximum accepted form age in seconds
+ * @return array ['is_bot' => bool, 'reason' => string]
+ */
+function detect_bot_form_submission($post, $honeypot_field = 'website', $min_submit_seconds = 3, $max_submit_age = 86400) {
+    if (!is_array($post)) {
+        return ['is_bot' => true, 'reason' => 'invalid_post_payload'];
+    }
+
+    $honeypot_value = trim((string)($post[$honeypot_field] ?? ''));
+    if ($honeypot_value !== '') {
+        return ['is_bot' => true, 'reason' => 'honeypot_filled'];
+    }
+
+    $started_at = isset($post['form_started_at']) ? (int)$post['form_started_at'] : 0;
+    if ($started_at <= 0) {
+        return ['is_bot' => true, 'reason' => 'missing_form_timestamp'];
+    }
+
+    $age = time() - $started_at;
+    if ($age < $min_submit_seconds) {
+        return ['is_bot' => true, 'reason' => 'submitted_too_fast'];
+    }
+    if ($age > $max_submit_age) {
+        return ['is_bot' => true, 'reason' => 'stale_form_submission'];
+    }
+
+    return ['is_bot' => false, 'reason' => ''];
+}
+
+/**
+ * Verify Cloudflare Turnstile token.
+ * @param string $token Turnstile response token from form
+ * @param string $remoteIp Optional remote IP
+ * @return array ['success' => bool, 'error' => string]
+ */
+function verify_turnstile_token($token, $remoteIp = '') {
+    $secret = getenv('JLM_TURNSTILE_SECRET_KEY') ?: '';
+    $token = trim((string)$token);
+    if ($secret === '' || $token === '') {
+        return ['success' => false, 'error' => 'missing_secret_or_token'];
+    }
+
+    $payload = [
+        'secret' => $secret,
+        'response' => $token
+    ];
+    if ($remoteIp !== '') {
+        $payload['remoteip'] = $remoteIp;
+    }
+
+    $endpoint = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    $rawResponse = '';
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($endpoint);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($payload));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $rawResponse = (string)curl_exec($ch);
+        curl_close($ch);
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'content' => http_build_query($payload),
+                'timeout' => 10
+            ]
+        ]);
+        $rawResponse = (string)@file_get_contents($endpoint, false, $context);
+    }
+
+    if ($rawResponse === '') {
+        return ['success' => false, 'error' => 'verification_request_failed'];
+    }
+
+    $decoded = json_decode($rawResponse, true);
+    if (!is_array($decoded)) {
+        return ['success' => false, 'error' => 'invalid_verification_response'];
+    }
+
+    if (!empty($decoded['success'])) {
+        return ['success' => true, 'error' => ''];
+    }
+
+    $codes = isset($decoded['error-codes']) && is_array($decoded['error-codes']) ? implode(',', $decoded['error-codes']) : 'turnstile_failed';
+    return ['success' => false, 'error' => $codes];
+}
+
+/**
  * Block IP address temporarily
  * @param string $ip IP address to block
  * @param int $duration Block duration in seconds
@@ -351,6 +446,69 @@ function is_ip_blocked($ip) {
 function clean_expired_blocks() {
     $block_file = __DIR__ . "/../cache/blocked_ips.json";
     
+
+/**
+ * Block IP address temporarily
+ * @param string $ip IP address to block
+ * @param int $duration Block duration in seconds
+ * @param string $reason Reason for blocking
+ */
+function block_ip($ip, $duration = 3600, $reason = 'Suspicious activity') {
+    $block_file = __DIR__ . "/../cache/blocked_ips.json";
+    $cache_dir = dirname($block_file);
+    
+    if (!is_dir($cache_dir)) {
+        mkdir($cache_dir, 0755, true);
+    }
+    
+    $blocked_ips = [];
+    if (file_exists($block_file)) {
+        $blocked_ips = json_decode(file_get_contents($block_file), true) ?: [];
+    }
+    
+    $blocked_ips[$ip] = [
+        'blocked_until' => time() + $duration,
+        'reason' => $reason,
+        'blocked_at' => time()
+    ];
+    
+    file_put_contents($block_file, json_encode($blocked_ips));
+    
+    log_security_event('ip_blocked', "IP {$ip} blocked for {$reason}", [
+        'duration' => $duration,
+        'blocked_until' => time() + $duration
+    ]);
+}
+
+/**
+ * Check if IP is blocked
+ * @param string $ip IP address to check
+ * @return bool True if blocked
+ */
+function is_ip_blocked($ip) {
+    $block_file = __DIR__ . "/../cache/blocked_ips.json";
+    
+    if (!file_exists($block_file)) {
+        return false;
+    }
+    
+    $blocked_ips = json_decode(file_get_contents($block_file), true) ?: [];
+    
+    if (isset($blocked_ips[$ip])) {
+        $block_data = $blocked_ips[$ip];
+        
+        // Check if block has expired
+        if (time() > $block_data['blocked_until']) {
+            unset($blocked_ips[$ip]);
+            file_put_contents($block_file, json_encode($blocked_ips));
+            return false;
+        }
+        
+        return true;
+    }
+    
+    return false;
+}
     if (!file_exists($block_file)) {
         return;
     }
@@ -371,9 +529,7 @@ function clean_expired_blocks() {
     }
 }
 
-// Clean up old data periodically (1 in 100 requests)
 if (rand(1, 100) === 1) {
     clean_rate_limit_cache();
     clean_expired_blocks();
 }
-?> 

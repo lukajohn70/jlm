@@ -1,25 +1,17 @@
 <?php
 session_start();
+require_once __DIR__ . '/includes/admin_auth.php';
+require_once __DIR__ . '/includes/blog_helpers.php';
 require_once __DIR__ . '/config/config.php';
-if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
-    header('Location: login.php');
-    exit;
-}
-
-// Get admin user ID from email
-$admin_email = $_SESSION['admin_email'] ?? '';
-$stmt = $pdo->prepare('SELECT id FROM users WHERE email = ? AND role = "admin" LIMIT 1');
-$stmt->execute([$admin_email]);
-$admin_user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$admin_user) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/blog_schema_migrate.php';
+jlm_ensure_blog_posts_schema($GLOBALS['pdo'] ?? null);
+$admin_user = require_admin_auth();
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $error = '';
 $success = '';
+$editorAssetVersion = (string) (@filemtime(__DIR__ . '/assets/js/rich-text-editor.js') ?: time());
 
 $stmt = $pdo->prepare('SELECT * FROM blog_posts WHERE id = ? AND author_id = ?');
 $stmt->execute([$id, $admin_user['id']]);
@@ -31,10 +23,38 @@ if (!$post) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $originalPost = $post;
+    
+    // Preserve form data in $post array on validation error/reload
+    $post['title'] = $_POST['title'] ?? '';
+    $post['slug'] = $_POST['slug'] ?? '';
+    $post['content'] = $_POST['content'] ?? '';
+    $post['image'] = $_POST['image'] ?? '';
+    $post['category'] = $_POST['category'] ?? '';
+    $post['tags'] = $_POST['tags'] ?? '';
+    $post['meta_title'] = $_POST['meta_title'] ?? '';
+    $post['meta_description'] = $_POST['meta_description'] ?? '';
+    $post['og_image'] = $_POST['og_image'] ?? '';
+    $post['canonical_url'] = $_POST['canonical_url'] ?? '';
+    $post['is_featured'] = !empty($_POST['is_featured']) ? 1 : 0;
+    $post['is_pinned'] = !empty($_POST['is_pinned']) ? 1 : 0;
+    $post['status'] = $_POST['status'] ?? 'draft';
+    if (isset($_POST['published_at'])) {
+        $post['published_at'] = $_POST['published_at'];
+    }
+
     $title = trim($_POST['title'] ?? '');
     $slug = trim($_POST['slug'] ?? '');
     $content = trim($_POST['content'] ?? '');
     $image = trim($_POST['image'] ?? '');
+    $category = trim($_POST['category'] ?? '');
+    $tags = trim($_POST['tags'] ?? '');
+    $meta_title = trim($_POST['meta_title'] ?? '');
+    $meta_description = trim($_POST['meta_description'] ?? '');
+    $og_image = trim($_POST['og_image'] ?? '');
+    $canonical_url = trim($_POST['canonical_url'] ?? '');
+    $is_featured = !empty($_POST['is_featured']) ? 1 : 0;
+    $is_pinned = !empty($_POST['is_pinned']) ? 1 : 0;
     $status = $_POST['status'] ?? 'draft';
     
     if (!$title || !$slug || !$content || !in_array($status, ['draft','published','scheduled'])) {
@@ -45,9 +65,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->fetch()) {
             $error = 'Slug already exists. Please choose a different one.';
         } else {
-            $stmt = $pdo->prepare('UPDATE blog_posts SET title = ?, slug = ?, content = ?, image = ?, status = ? WHERE id = ?');
-            $stmt->execute([$title, $slug, $content, $image, $status, $id]);
-            $success = 'Blog post updated successfully!';
+            $publishedAt = null;
+            if ($status === 'published') {
+                $customTime = trim($_POST['published_at'] ?? '');
+                if ($customTime !== '') {
+                    $publishedAt = date('Y-m-d H:i:s', strtotime($customTime));
+                } else {
+                    $publishedAt = (!empty($originalPost['published_at']) && $originalPost['status'] === 'published') ? $originalPost['published_at'] : date('Y-m-d H:i:s');
+                }
+            } elseif ($status === 'scheduled') {
+                $scheduledTime = trim($_POST['published_at'] ?? '');
+                if ($scheduledTime === '') {
+                    $error = 'Please select a date and time for scheduling.';
+                } else {
+                    $publishedAt = date('Y-m-d H:i:s', strtotime($scheduledTime));
+                    if (strtotime($publishedAt) <= time()) {
+                        $error = 'Schedule date and time must be in the future.';
+                    }
+                }
+            }
+
+            if (!$error) {
+                $excerpt = trim(strip_tags($content));
+                $excerpt = $excerpt !== '' ? mb_substr($excerpt, 0, 180) : null;
+                $readingTime = max(1, (int) ceil(str_word_count(strip_tags($content)) / 200));
+                $stmt = $pdo->prepare('
+                    UPDATE blog_posts
+                    SET title = ?, slug = ?, excerpt = ?, content = ?, image = ?, category = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?, canonical_url = ?, is_featured = ?, is_pinned = ?, reading_time_minutes = ?, status = ?, published_at = ?
+                    WHERE id = ?
+                ');
+                $stmt->execute([
+                    $title,
+                    $slug,
+                    $excerpt,
+                    $content,
+                    $image ?: null,
+                    $category ?: null,
+                    $tags ?: null,
+                    $meta_title ?: null,
+                    $meta_description ?: null,
+                    $og_image ?: null,
+                    $canonical_url ?: null,
+                    $is_featured,
+                    $is_pinned,
+                    $readingTime,
+                    $status,
+                    $publishedAt,
+                    $id
+                ]);
+                if ($status === 'published') {
+                    sync_blog_social_post($pdo, [
+                        'id' => $id,
+                        'title' => $title,
+                        'slug' => $slug,
+                        'excerpt' => $excerpt,
+                        'content' => $content,
+                        'category' => $category,
+                        'tags' => $tags,
+                        'status' => $status,
+                    ]);
+                    jlm_send_new_post_updates($pdo, [
+                        'id' => $id,
+                        'title' => $title,
+                        'slug' => $slug,
+                        'excerpt' => $excerpt,
+                        'content' => $content,
+                        'status' => $status,
+                    ]);
+                }
+                $success = 'Blog post updated successfully!';
+                $stmt = $pdo->prepare('SELECT * FROM blog_posts WHERE id = ? AND author_id = ?');
+                $stmt->execute([$id, $admin_user['id']]);
+                $post = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
         }
     }
 }
@@ -58,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <title>Edit Blog Post | JLM Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="assets/images/jlm.png" />
+    <link rel="icon" type="image/png" href="<?php echo asset_url('assets/images/jlm.png'); ?>" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -66,8 +156,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .blog-editor-container {
             margin-bottom: 1rem;
         }
+        .blog-editor-container .jlm-editor {
+            overflow: visible;
+        }
+        .blog-editor-container .jlm-editor-toolbar {
+            position: sticky;
+            top: calc(5rem + 0.75rem);
+            z-index: 20;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        }
+        .blog-editor-container .jlm-editor-content {
+            border-radius: 0 0 0.5rem 0.5rem;
+        }
     </style>
-    <script src="assets/js/rich-text-editor.js"></script>
+    <script src="<?php echo asset_url('assets/js/rich-text-editor.js?v=' . rawurlencode($editorAssetVersion)); ?>"></script>
     <script>
         // Initialize the rich text editor when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -82,6 +184,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'alignLeft', 'alignCenter', 'alignRight', 'justifyFull',
                     'separator',
                     'bulletList', 'numberedList',
+                    'separator',
+                    'heading',
+                    'separator',
+                    'brandColors',
                     'separator',
                     'fontFamily', 'fontSize', 'textColor', 'backgroundColor',
                     'separator',
@@ -99,10 +205,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
             
-            // Load existing content if any
-            const existingContent = document.querySelector('#content').innerHTML;
-            if (existingContent && existingContent.trim() !== '') {
-                window.blogEditor.setContent(existingContent);
+            const initTa = document.getElementById('blog-initial-html');
+            if (initTa && initTa.value.trim() !== '') {
+                window.blogEditor.setContent(initTa.value);
             }
             
             // Handle form submission
@@ -118,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <header class="bg-white shadow-sm border-b sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
             <div class="flex items-center space-x-3">
-                <img src="assets/images/jlm.png" alt="JLM Logo" class="h-10 w-auto rounded-lg">
+                <img src="<?php echo asset_url('assets/images/jlm.png'); ?>" alt="JLM Logo" class="h-10 w-auto rounded-lg">
                 <span class="text-xl font-bold text-gray-900">Edit Blog Post</span>
             </div>
             <div class="flex items-center space-x-4">
@@ -174,15 +279,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
 
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="category" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <input type="text" id="category" name="category" value="<?php echo htmlspecialchars($post['category'] ?? ''); ?>"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="e.g. Strategy, Design, Production">
+                    </div>
+                    <div>
+                        <label for="tags" class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                        <input type="text" id="tags" name="tags" value="<?php echo htmlspecialchars($post['tags'] ?? ''); ?>"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="comma,separated,tags">
+                    </div>
+                </div>
+
                 <div>
-                    <label for="image" class="block text-sm font-medium text-gray-700 mb-2">
-                        Featured Image URL
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Featured Image
                     </label>
-                    <input type="url" id="image" name="image" 
-                           value="<?php echo htmlspecialchars($post['image']); ?>"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           placeholder="https://example.com/image.jpg">
-                    <p class="text-sm text-gray-500 mt-1">Optional: Add a featured image for your blog post</p>
+                    <input type="hidden" id="image" name="image" value="<?php echo htmlspecialchars($post['image']); ?>">
+                    <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
+                        <div class="flex flex-col md:flex-row md:items-center gap-4">
+                            <label for="featured-image-upload" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-gradient-to-r from-[#1b2299] to-[#e4306d] text-white font-semibold cursor-pointer hover:from-[#151d7a] hover:to-[#c2285a] transition">
+                                <i class="fas fa-upload mr-2"></i>Upload Image
+                            </label>
+                            <input type="file" id="featured-image-upload" accept="image/*" class="hidden">
+                            <div class="flex-1">
+                                <p id="featured-image-status" class="text-sm text-gray-500"></p>
+                                <div id="featured-image-hint" class="text-xs text-gray-500 space-y-1">
+                                    <p class="font-semibold text-gray-700 flex items-center gap-1.5"><i class="fas fa-info-circle text-[#1b2299]"></i> Featured Image Tips</p>
+                                    <ul class="space-y-0.5 list-none ml-0.5">
+                                        <li><i class="fas fa-ruler-combined text-[#e4306d] w-3.5 mr-1"></i><strong>Ideal size:</strong> 1200 × 630 px (16:9 landscape)</li>
+                                        <li><i class="fas fa-weight-hanging text-[#e4306d] w-3.5 mr-1"></i><strong>Max file size:</strong> 2 MB</li>
+                                        <li><i class="fas fa-file-image text-[#e4306d] w-3.5 mr-1"></i><strong>Formats:</strong> JPG, PNG, WebP</li>
+                                        <li><i class="fab fa-facebook text-[#e4306d] w-3.5 mr-1"></i>This image also appears when shared on Facebook/social media.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="featured-image-preview-wrapper" class="<?php echo empty($post['image']) ? 'hidden' : ''; ?> mt-4">
+                            <img id="featured-image-preview" src="<?php echo htmlspecialchars($post['image']); ?>" alt="Featured preview" class="h-48 w-full max-w-xl object-cover rounded-xl shadow-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-gray-200 p-4 bg-gray-50/70">
+                    <h3 class="text-sm font-semibold text-gray-900 mb-3">SEO & Sharing</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="meta_title" class="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                            <input type="text" id="meta_title" name="meta_title" value="<?php echo htmlspecialchars($post['meta_title'] ?? ''); ?>"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="Optional SEO title">
+                        </div>
+                        <div>
+                            <label for="canonical_url" class="block text-sm font-medium text-gray-700 mb-1">Canonical URL</label>
+                            <input type="url" id="canonical_url" name="canonical_url" value="<?php echo htmlspecialchars($post['canonical_url'] ?? ''); ?>"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="meta_description" class="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                            <textarea id="meta_description" name="meta_description" rows="3"
+                                      class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      placeholder="Optional SEO description"><?php echo htmlspecialchars($post['meta_description'] ?? ''); ?></textarea>
+                        </div>
+                        <div>
+                            <label for="og_image" class="block text-sm font-medium text-gray-700 mb-1">OG Image URL</label>
+                            <input type="url" id="og_image" name="og_image" value="<?php echo htmlspecialchars($post['og_image'] ?? ''); ?>"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="https://...">
+                            <div class="mt-3 flex flex-wrap gap-4">
+                                <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="is_featured" value="1" <?php echo !empty($post['is_featured']) ? 'checked' : ''; ?>>
+                                    Featured post
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="is_pinned" value="1" <?php echo !empty($post['is_pinned']) ? 'checked' : ''; ?>>
+                                    Pin to top
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div>
@@ -195,17 +376,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <option value="scheduled" <?php echo $post['status'] === 'scheduled' ? 'selected' : ''; ?>>Scheduled</option>
                         <option value="published" <?php echo $post['status'] === 'published' ? 'selected' : ''; ?>>Published</option>
                     </select>
-                    <p class="text-sm text-gray-500 mt-1">Draft posts are not visible to the public</p>
+                    <p class="text-sm text-gray-500 mt-1">Published posts appear publicly and keep a Facebook-ready caption in sync.</p>
+                </div>
+
+                <div id="schedule-time-container" class="hidden">
+                    <label for="published_at" class="block text-sm font-medium text-gray-700 mb-2" id="published-at-label">
+                        Schedule Date & Time <span class="text-red-500" id="published-at-required">*</span>
+                    </label>
+                    <input type="datetime-local" id="published_at" name="published_at"
+                           value="<?php echo !empty($post['published_at']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime($post['published_at']))) : ''; ?>"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1" id="published-at-help">Select the date and time when this blog post should be automatically published.</p>
                 </div>
 
                 <div>
                     <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
                         Content <span class="text-red-500">*</span>
                     </label>
-                    <div id="content" style="display: none;"><?php echo htmlspecialchars($post['content']); ?></div>
                     <div id="editor" class="blog-editor-container"></div>
-                    <textarea name="content" id="content-hidden" style="display: none;"><?php echo htmlspecialchars($post['content']); ?></textarea>
+                    <textarea name="content" id="content-hidden" class="hidden"><?php echo htmlspecialchars($post['content'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    <textarea id="blog-initial-html" class="hidden" hidden aria-hidden="true"><?php echo htmlspecialchars($post['content'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
                     <p class="text-sm text-gray-500 mt-1">Use the rich text editor above to format your content with bold, italic, colors, headers, and more!</p>
+                </div>
+
+                <!-- Post Timeline -->
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 space-y-2">
+                    <p class="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <i class="fas fa-clock text-[#1b2299]"></i> Post Timeline
+                    </p>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Created</span>
+                        <span class="font-medium text-gray-800">
+                            <?php
+                            if (!empty($originalPost['created_at'] ?? $post['created_at'])) {
+                                $ts = strtotime($originalPost['created_at'] ?? $post['created_at']);
+                                echo htmlspecialchars(date('M j, Y · g:i A', $ts));
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Last saved</span>
+                        <span class="font-medium text-gray-800">
+                            <?php
+                            $lastSaved = $originalPost['updated_at'] ?? ($post['updated_at'] ?? null);
+                            if (!empty($lastSaved)) {
+                                $ts = strtotime($lastSaved);
+                                echo htmlspecialchars(date('M j, Y · g:i A', $ts));
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </span>
+                    </div>
+                    <?php
+                    $pubAt = $originalPost['published_at'] ?? ($post['published_at'] ?? null);
+                    if (!empty($pubAt)):
+                    ?>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Published</span>
+                        <span class="font-medium text-gray-800">
+                            <?php echo htmlspecialchars(date('M j, Y · g:i A', strtotime($pubAt))); ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
@@ -234,6 +470,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             document.getElementById('slug').value = slug;
         });
+
+        const featuredImageUpload = document.getElementById('featured-image-upload');
+        const featuredImageInput = document.getElementById('image');
+        const featuredImagePreview = document.getElementById('featured-image-preview');
+        const featuredImagePreviewWrapper = document.getElementById('featured-image-preview-wrapper');
+        const featuredImageStatus = document.getElementById('featured-image-status');
+
+        featuredImageUpload.addEventListener('change', async function () {
+            const file = this.files[0];
+            if (!file) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            featuredImageStatus.textContent = 'Uploading image...';
+
+            try {
+                const response = await fetch('upload_image.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.url) {
+                    throw new Error(result.error || 'Upload failed.');
+                }
+
+                featuredImageInput.value = result.url;
+                featuredImagePreview.src = result.url;
+                featuredImagePreviewWrapper.classList.remove('hidden');
+                featuredImageStatus.textContent = 'Featured image uploaded successfully.';
+            } catch (error) {
+                featuredImageStatus.textContent = error.message;
+            }
+        });
+
+        // Toggle Schedule Date/Time field visibility based on selected status
+        const statusSelect = document.getElementById('status');
+        const scheduleContainer = document.getElementById('schedule-time-container');
+        const publishedAtInput = document.getElementById('published_at');
+        const publishedAtLabel = document.getElementById('published-at-label');
+        const publishedAtHelp = document.getElementById('published-at-help');
+
+        function toggleScheduleField() {
+            if (statusSelect.value === 'scheduled') {
+                scheduleContainer.classList.remove('hidden');
+                publishedAtInput.required = true;
+                publishedAtLabel.innerHTML = 'Schedule Date & Time <span class="text-red-500">*</span>';
+                publishedAtHelp.textContent = 'Select the date and time when this blog post should be automatically published.';
+            } else if (statusSelect.value === 'published') {
+                scheduleContainer.classList.remove('hidden');
+                publishedAtInput.required = false;
+                publishedAtLabel.innerHTML = 'Publish Date & Time <span class="text-gray-400">(Optional)</span>';
+                publishedAtHelp.textContent = 'Leave blank to publish immediately, or set a past date/time to backdate this post.';
+            } else {
+                scheduleContainer.classList.add('hidden');
+                publishedAtInput.required = false;
+            }
+        }
+
+        statusSelect.addEventListener('change', toggleScheduleField);
+        toggleScheduleField(); // Run on initialization
     </script>
 </body>
 </html> 

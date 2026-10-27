@@ -21,12 +21,17 @@ class RichTextEditor {
             uploadUrl: '/upload_image.php',
             allowedImageTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
             maxImageSize: 5 * 1024 * 1024, // 5MB
+            brandColors: ['#1b2299', '#e4306d', '#f7de7a', '#111827', '#374151'],
             toolbar: [
                 'bold', 'italic', 'underline', 'strikethrough',
                 'separator',
                 'alignLeft', 'alignCenter', 'alignRight', 'justifyFull',
                 'separator',
                 'bulletList', 'numberedList',
+                'separator',
+                'heading',
+                'separator',
+                'brandColors',
                 'separator',
                 'fontFamily', 'fontSize', 'textColor', 'backgroundColor',
                 'separator',
@@ -123,6 +128,8 @@ class RichTextEditor {
         this.createContentArea();
         this.bindEvents();
         this.isInitialized = true;
+        this._savedRange = null;
+        this._toolbarSelection = null;
 
         // Trigger initial content change event
         this.triggerContentChange();
@@ -142,6 +149,7 @@ class RichTextEditor {
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
                 background: white;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                overflow: hidden;
             }
             .jlm-editor-toolbar {
                 background-color: #f9fafb;
@@ -183,13 +191,16 @@ class RichTextEditor {
                 margin: 0 0.25rem;
             }
             .jlm-editor-content {
+                height: ${this.options.height}px;
                 min-height: ${this.options.height}px;
+                max-height: ${this.options.height}px;
                 padding: 1rem;
                 outline: none;
                 font-size: 16px;
                 line-height: 1.6;
                 color: #374151;
                 overflow-y: auto;
+                overscroll-behavior: contain;
             }
             .jlm-editor-content:focus {
                 background: #fafafa;
@@ -198,6 +209,40 @@ class RichTextEditor {
                 content: "${this.options.placeholder}";
                 color: #9ca3af;
                 pointer-events: none;
+            }
+            .jlm-editor-content ul {
+                list-style: disc;
+                list-style-position: outside;
+                margin: 0.75rem 0 0.75rem 1.5rem;
+                padding-left: 0.5rem;
+            }
+            .jlm-editor-content ol {
+                list-style: decimal;
+                list-style-position: outside;
+                margin: 0.75rem 0 0.75rem 1.5rem;
+                padding-left: 0.5rem;
+            }
+            .jlm-editor-content li {
+                display: list-item;
+                margin: 0.25rem 0;
+            }
+            .jlm-editor-content h1 {
+                font-size: 2rem;
+                font-weight: 700;
+                line-height: 1.2;
+                margin: 0.85rem 0 0.55rem;
+            }
+            .jlm-editor-content h2 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                line-height: 1.3;
+                margin: 0.8rem 0 0.5rem;
+            }
+            .jlm-editor-content h3 {
+                font-size: 1.25rem;
+                font-weight: 600;
+                line-height: 1.4;
+                margin: 0.75rem 0 0.45rem;
             }
             .jlm-color-picker {
                 width: 30px;
@@ -579,7 +624,8 @@ class RichTextEditor {
         button.title = this.getButtonTitle(command);
 
         const icon = this.getButtonIcon(command);
-        if (icon) {
+        const preferLabel = ['fontFamily', 'fontSize', 'textColor', 'backgroundColor', 'heading', 'brandColors'].includes(command);
+        if (icon && !preferLabel) {
             button.innerHTML = `<i class="${icon}"></i>`;
         } else {
             button.textContent = this.getButtonText(command);
@@ -613,6 +659,8 @@ class RichTextEditor {
             quote: 'Insert Quote',
             code: 'Insert Code',
             sectionBreak: 'Insert Section Break',
+            heading: 'Heading (P, H1, H2, H3)',
+            brandColors: 'Brand Colors',
             undo: 'Undo',
             redo: 'Redo',
             clearFormat: 'Clear Formatting'
@@ -639,6 +687,8 @@ class RichTextEditor {
             quote: 'fas fa-quote-left',
             code: 'fas fa-code',
             sectionBreak: 'fas fa-minus',
+            heading: 'fas fa-heading',
+            brandColors: 'fas fa-palette',
             undo: 'fas fa-undo',
             redo: 'fas fa-redo',
             clearFormat: 'fas fa-eraser'
@@ -651,7 +701,9 @@ class RichTextEditor {
             fontFamily: 'Font',
             fontSize: 'Size',
             textColor: 'Color',
-            backgroundColor: 'BG'
+            backgroundColor: 'BG',
+            heading: 'H',
+            brandColors: 'Brand'
         };
         return texts[command] || '';
     }
@@ -665,12 +717,19 @@ class RichTextEditor {
     }
 
     bindEvents() {
-        // Toolbar button events
+        // Capture phase: save selection BEFORE the browser clears it on toolbar interaction.
+        // Without this, only inline commands (bold/italic/underline) tend to work.
+        this.toolbar.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.jlm-toolbar-btn')) {
+                e.preventDefault();
+                this._toolbarSelection = this.cloneRangeInEditor();
+            }
+        }, true);
+
         this.toolbar.addEventListener('click', (e) => {
             if (e.target.closest('.jlm-toolbar-btn')) {
                 const btn = e.target.closest('.jlm-toolbar-btn');
                 const command = btn.dataset.command;
-                console.log('Button clicked:', command, 'Button:', btn);
                 this.executeCommand(command);
             }
         });
@@ -710,14 +769,175 @@ class RichTextEditor {
         });
     }
 
-    executeCommand(command, value = null) {
-        console.log('Executing command:', command);
+    cloneRangeInEditor() {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) {
+            return null;
+        }
+        const range = sel.getRangeAt(0);
+        const root = range.commonAncestorContainer;
+        if (!this.content.contains(root)) {
+            return null;
+        }
+        try {
+            return range.cloneRange();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    restoreRange(range) {
+        if (!range) {
+            return;
+        }
         this.content.focus();
-        
-        // Ensure there's content to work with
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        try {
+            sel.addRange(range);
+        } catch (e) {
+            /* nodes removed — place caret at end */
+            this.placeCaretAtEnd();
+        }
+    }
+
+    placeCaretAtEnd() {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        const p = this.content.querySelector('p:last-child') || this.content;
+        range.selectNodeContents(p);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    /** If there is no selection inside the editor, put caret at end */
+    ensureSelectionInEditor() {
+        this.content.focus();
+        const sel = window.getSelection();
+        if (sel.rangeCount && this.content.contains(sel.anchorNode)) {
+            return;
+        }
+        this.placeCaretAtEnd();
+    }
+
+    safeSurroundRange(range, wrapper) {
+        try {
+            range.surroundContents(wrapper);
+        } catch (err) {
+            const contents = range.extractContents();
+            wrapper.appendChild(contents);
+            range.insertNode(wrapper);
+            range.selectNodeContents(wrapper);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+
+    captureSelectionRange() {
+        this._savedRange = this.cloneRangeInEditor();
+    }
+
+    restoreSelectionRange() {
+        if (!this._savedRange) {
+            return;
+        }
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        try {
+            sel.addRange(this._savedRange);
+        } catch (e) {
+            /* range may be invalid if DOM changed */
+        }
+    }
+
+    normalizeCommand(command) {
+        const aliases = {
+            link: 'createLink',
+            image: 'insertImage',
+            video: 'insertVideo',
+            audio: 'insertAudio',
+        };
+        return aliases[command] || command;
+    }
+
+    tryExecCommand(cmd, val = null) {
+        try {
+            return document.execCommand(cmd, false, val);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /** Reliable alignment when justify* execCommand is disabled (common in Chromium). */
+    applyParagraphAlign(cssAlign) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) {
+            return;
+        }
+        let node = sel.anchorNode;
+        if (node.nodeType === Node.TEXT_NODE) {
+            node = node.parentElement;
+        }
+        let cur = node;
+        const blockRe = /^(P|DIV|H[1-6]|BLOCKQUOTE|LI|SECTION|ARTICLE|PRE)$/i;
+        while (cur && cur !== this.content) {
+            if (blockRe.test(cur.tagName) && this.content.contains(cur)) {
+                cur.style.textAlign = cssAlign;
+                return;
+            }
+            cur = cur.parentElement;
+        }
+        const p = this.content.querySelector('p') || this.content;
+        if (p) {
+            p.style.textAlign = cssAlign;
+        }
+    }
+
+    applyListFallback(ordered) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) {
+            return;
+        }
+        let block = sel.getRangeAt(0).commonAncestorContainer;
+        if (block.nodeType === Node.TEXT_NODE) {
+            block = block.parentElement;
+        }
+        block = block && block.closest ? block.closest('p, div, h1, h2, h3, h4, h5, h6, blockquote') : null;
+        if (!block || !this.content.contains(block)) {
+            return;
+        }
+        const list = document.createElement(ordered ? 'ol' : 'ul');
+        const li = document.createElement('li');
+        while (block.firstChild) {
+            li.appendChild(block.firstChild);
+        }
+        list.appendChild(li);
+        block.parentNode.replaceChild(list, block);
+        sel.removeAllRanges();
+        const nr = document.createRange();
+        nr.selectNodeContents(li);
+        nr.collapse(false);
+        sel.addRange(nr);
+    }
+
+    executeCommand(command, value = null) {
+        command = this.normalizeCommand(command);
+
+        this.content.focus();
+        if (this._toolbarSelection) {
+            this.restoreRange(this._toolbarSelection);
+        }
+
+        const asyncPickerCommands = new Set(['fontFamily', 'fontSize', 'textColor', 'backgroundColor', 'heading', 'brandColors']);
+        if (!asyncPickerCommands.has(command)) {
+            this._toolbarSelection = null;
+        }
+
         if (this.content.innerHTML === '<p><br></p>' || this.content.innerHTML === '<p></p>') {
             this.content.innerHTML = '<p>Type here...</p>';
-            // Place cursor at the end
             const range = document.createRange();
             const selection = window.getSelection();
             range.selectNodeContents(this.content.querySelector('p'));
@@ -725,36 +945,53 @@ class RichTextEditor {
             selection.removeAllRanges();
             selection.addRange(range);
         }
-        
+
+        this.ensureSelectionInEditor();
+
         switch(command) {
-            // Basic formatting - these still work with execCommand
             case 'bold':
             case 'italic':
             case 'underline':
-            case 'strikethrough':
                 document.execCommand(command, false, value);
                 break;
-                
-            // Alignment commands
+            case 'strikethrough': {
+                if (!this.tryExecCommand('strikeThrough', null)) {
+                    const sel = window.getSelection();
+                    if (sel.rangeCount > 0 && !sel.isCollapsed && this.content.contains(sel.anchorNode)) {
+                        const range = sel.getRangeAt(0);
+                        const s = document.createElement('s');
+                        this.safeSurroundRange(range, s);
+                    }
+                }
+                break;
+            }
+
             case 'alignLeft':
-                document.execCommand('justifyLeft', false, null);
+                this.tryExecCommand('justifyLeft', null);
+                this.applyParagraphAlign('left');
                 break;
             case 'alignCenter':
-                document.execCommand('justifyCenter', false, null);
+                this.tryExecCommand('justifyCenter', null);
+                this.applyParagraphAlign('center');
                 break;
             case 'alignRight':
-                document.execCommand('justifyRight', false, null);
+                this.tryExecCommand('justifyRight', null);
+                this.applyParagraphAlign('right');
                 break;
             case 'justifyFull':
-                document.execCommand('justifyFull', false, null);
+                this.tryExecCommand('justifyFull', null);
+                this.applyParagraphAlign('justify');
                 break;
-                
-            // List commands
+
             case 'bulletList':
-                document.execCommand('insertUnorderedList', false, null);
+                if (!this.tryExecCommand('insertUnorderedList', null) || !this.content.querySelector('ul')) {
+                    this.applyListFallback(false);
+                }
                 break;
             case 'numberedList':
-                document.execCommand('insertOrderedList', false, null);
+                if (!this.tryExecCommand('insertOrderedList', null) || !this.content.querySelector('ol')) {
+                    this.applyListFallback(true);
+                }
                 break;
                 
             // Custom commands
@@ -771,25 +1008,49 @@ class RichTextEditor {
                 this.insertAudio();
                 break;
             case 'insertQuote':
+            case 'quote':
                 this.insertQuote();
                 break;
             case 'insertCode':
+            case 'code':
                 this.insertCode();
                 break;
             case 'insertSectionBreak':
+            case 'sectionBreak':
                 this.insertSectionBreak();
                 break;
+            case 'insertParagraph':
+                document.execCommand('insertParagraph', false, null);
+                break;
             case 'fontFamily':
+                this._savedRange = this.cloneRangeInEditor();
+                this._toolbarSelection = null;
                 this.createFontFamilySelect();
                 break;
             case 'fontSize':
+                this._savedRange = this.cloneRangeInEditor();
+                this._toolbarSelection = null;
                 this.createFontSizeSelect();
                 break;
             case 'textColor':
+                this._savedRange = this.cloneRangeInEditor();
+                this._toolbarSelection = null;
                 this.createColorPicker('foreColor');
                 break;
             case 'backgroundColor':
+                this._savedRange = this.cloneRangeInEditor();
+                this._toolbarSelection = null;
                 this.createColorPicker('hiliteColor');
+                break;
+            case 'heading':
+                this._savedRange = this.cloneRangeInEditor();
+                this._toolbarSelection = null;
+                this.createHeadingSelect();
+                break;
+            case 'brandColors':
+                this._savedRange = this.cloneRangeInEditor();
+                this._toolbarSelection = null;
+                this.createBrandColorPalette();
                 break;
             case 'undo':
                 document.execCommand('undo', false, null);
@@ -811,13 +1072,15 @@ class RichTextEditor {
     createLink() {
         const url = prompt('Enter URL:');
         if (url) {
+            this.content.focus();
             const selection = window.getSelection();
-            if (selection.rangeCount > 0 && !selection.isCollapsed) {
+            if (selection.rangeCount > 0 && !selection.isCollapsed && this.content.contains(selection.anchorNode)) {
                 const range = selection.getRangeAt(0);
                 const link = document.createElement('a');
                 link.href = url;
                 link.target = '_blank';
-                range.surroundContents(link);
+                link.rel = 'noopener noreferrer';
+                this.safeSurroundRange(range, link);
             } else {
                 // If no selection, create a link with the URL as text
                 const link = document.createElement('a');
@@ -830,6 +1093,7 @@ class RichTextEditor {
     }
 
     insertImage() {
+        const rangeSnapshot = this.cloneRangeInEditor();
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -837,7 +1101,7 @@ class RichTextEditor {
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
-                this.uploadImage(file);
+                this.uploadImage(file, rangeSnapshot);
             }
         };
         input.click();
@@ -858,22 +1122,38 @@ class RichTextEditor {
     }
 
     insertQuote() {
-        const text = prompt('Enter quote text:');
-        if (text) {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0 && !sel.isCollapsed && this.content.contains(sel.anchorNode)) {
+            const range = sel.getRangeAt(0);
             const quote = document.createElement('blockquote');
             quote.className = 'jlm-quote';
-            quote.innerHTML = text;
-            this.insertElement(quote);
+            this.safeSurroundRange(range, quote);
+        } else {
+            const text = prompt('Enter quote text:');
+            if (text) {
+                const quote = document.createElement('blockquote');
+                quote.className = 'jlm-quote';
+                quote.innerHTML = text;
+                this.insertElement(quote);
+            }
         }
     }
 
     insertCode() {
-        const code = prompt('Enter code:');
-        if (code) {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0 && !sel.isCollapsed && this.content.contains(sel.anchorNode)) {
+            const range = sel.getRangeAt(0);
             const codeElement = document.createElement('pre');
             codeElement.className = 'jlm-code';
-            codeElement.textContent = code;
-            this.insertElement(codeElement);
+            this.safeSurroundRange(range, codeElement);
+        } else {
+            const code = prompt('Enter code:');
+            if (code) {
+                const codeElement = document.createElement('pre');
+                codeElement.className = 'jlm-code';
+                codeElement.textContent = code;
+                this.insertElement(codeElement);
+            }
         }
     }
 
@@ -1249,13 +1529,14 @@ class RichTextEditor {
         select.addEventListener('change', (e) => {
             const font = e.target.value;
             if (font) {
-                // Use a more reliable method for font family
+                this.restoreSelectionRange();
+                this.ensureSelectionInEditor();
                 const selection = window.getSelection();
-                if (selection.rangeCount > 0 && !selection.isCollapsed) {
+                if (selection.rangeCount > 0 && !selection.isCollapsed && this.content.contains(selection.anchorNode)) {
                     const range = selection.getRangeAt(0);
                     const span = document.createElement('span');
                     span.style.fontFamily = font;
-                    range.surroundContents(span);
+                    this.safeSurroundRange(range, span);
                 } else {
                     // If no selection, apply to the current paragraph
                     const currentElement = this.getCurrentElement();
@@ -1276,7 +1557,7 @@ class RichTextEditor {
         setTimeout(() => {
             select.remove();
             button.style.display = 'flex';
-        }, 5000);
+        }, 15000);
     }
 
     createFontSizeSelect() {
@@ -1291,18 +1572,21 @@ class RichTextEditor {
         select.addEventListener('change', (e) => {
             const size = e.target.value;
             if (size) {
-                // Use a more reliable method for font size
+                this.restoreSelectionRange();
+                this.ensureSelectionInEditor();
                 const selection = window.getSelection();
-                if (selection.rangeCount > 0 && !selection.isCollapsed) {
+                if (selection.rangeCount > 0 && !selection.isCollapsed && this.content.contains(selection.anchorNode)) {
                     const range = selection.getRangeAt(0);
                     const span = document.createElement('span');
-                    span.style.fontSize = size;
-                    range.surroundContents(span);
+                    const legacyPx = { '1': '10px', '2': '13px', '3': '16px', '4': '18px', '5': '24px', '6': '32px', '7': '48px' };
+                    span.style.fontSize = legacyPx[size] || size;
+                    this.safeSurroundRange(range, span);
                 } else {
                     // If no selection, apply to the current paragraph
                     const currentElement = this.getCurrentElement();
                     if (currentElement) {
-                        currentElement.style.fontSize = size;
+                        const legacyPx = { '1': '10px', '2': '13px', '3': '16px', '4': '18px', '5': '24px', '6': '32px', '7': '48px' };
+                        currentElement.style.fontSize = legacyPx[size] || size;
                     }
                 }
             }
@@ -1318,18 +1602,25 @@ class RichTextEditor {
         setTimeout(() => {
             select.remove();
             button.style.display = 'flex';
-        }, 5000);
+        }, 15000);
     }
 
     getCurrentElement() {
         const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            return range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE 
-                ? range.commonAncestorContainer 
-                : range.commonAncestorContainer.parentElement;
+        if (!selection.rangeCount) {
+            return null;
         }
-        return null;
+        let node = selection.anchorNode;
+        if (node.nodeType === Node.TEXT_NODE) {
+            node = node.parentElement;
+        }
+        while (node && node !== this.content) {
+            if (node.parentElement === this.content) {
+                return node;
+            }
+            node = node.parentElement;
+        }
+        return this.content.querySelector('p') || this.content;
     }
 
     createColorPicker(command) {
@@ -1341,9 +1632,10 @@ class RichTextEditor {
         picker.addEventListener('change', (e) => {
             const color = e.target.value;
             if (color) {
-                // Use a more reliable method for colors
+                this.restoreSelectionRange();
+                this.ensureSelectionInEditor();
                 const selection = window.getSelection();
-                if (selection.rangeCount > 0 && !selection.isCollapsed) {
+                if (selection.rangeCount > 0 && !selection.isCollapsed && this.content.contains(selection.anchorNode)) {
                     const range = selection.getRangeAt(0);
                     const span = document.createElement('span');
                     if (command === 'foreColor') {
@@ -1351,7 +1643,7 @@ class RichTextEditor {
                     } else {
                         span.style.backgroundColor = color;
                     }
-                    range.surroundContents(span);
+                    this.safeSurroundRange(range, span);
                 } else {
                     // If no selection, apply to the current paragraph
                     const currentElement = this.getCurrentElement();
@@ -1371,7 +1663,135 @@ class RichTextEditor {
         picker.click();
     }
 
-    async uploadImage(file) {
+    applyHeadingFallback(tagName) {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) {
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        let node = range.commonAncestorContainer;
+        if (node.nodeType === Node.TEXT_NODE) {
+            node = node.parentElement;
+        }
+        const block = node && node.closest
+            ? node.closest('p, div, h1, h2, h3, h4, h5, h6, blockquote')
+            : null;
+        if (!block || !this.content.contains(block)) {
+            return;
+        }
+
+        const target = document.createElement(tagName.toLowerCase());
+        target.innerHTML = block.innerHTML;
+        target.style.cssText = block.style.cssText;
+        block.parentNode.replaceChild(target, block);
+
+        const newRange = document.createRange();
+        newRange.selectNodeContents(target);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+
+    createHeadingSelect() {
+        const select = document.createElement('select');
+        select.className = 'jlm-size-select';
+        select.innerHTML = `
+            <option value="">Headings</option>
+            <option value="P">Paragraph</option>
+            <option value="H1">H1</option>
+            <option value="H2">H2</option>
+            <option value="H3">H3</option>
+        `;
+
+        select.addEventListener('change', (e) => {
+            const heading = (e.target.value || '').toUpperCase();
+            if (heading) {
+                this.restoreSelectionRange();
+                this.ensureSelectionInEditor();
+                const formatValue = `<${heading.toLowerCase()}>`;
+                if (!this.tryExecCommand('formatBlock', formatValue)) {
+                    this.applyHeadingFallback(heading);
+                }
+            }
+            this.updateToolbar();
+            this.triggerContentChange();
+        });
+
+        const button = this.toolbar.querySelector('[data-command="heading"]');
+        if (button) {
+            button.style.display = 'none';
+            button.parentNode.insertBefore(select, button.nextSibling);
+            setTimeout(() => {
+                select.remove();
+                button.style.display = 'flex';
+            }, 15000);
+        }
+    }
+
+    createBrandColorPalette() {
+        this.restoreSelectionRange();
+        this.ensureSelectionInEditor();
+
+        const colors = Array.isArray(this.options.brandColors) && this.options.brandColors.length
+            ? this.options.brandColors
+            : ['#1b2299', '#e4306d'];
+        const picker = document.createElement('div');
+        picker.style.display = 'flex';
+        picker.style.alignItems = 'center';
+        picker.style.flexWrap = 'wrap';
+        picker.style.gap = '8px';
+        picker.style.padding = '8px';
+        picker.style.border = '1px solid #d1d5db';
+        picker.style.borderRadius = '8px';
+        picker.style.background = '#ffffff';
+        picker.style.boxShadow = '0 4px 10px rgba(0,0,0,0.08)';
+
+        const triggerBtn = this.toolbar.querySelector('[data-command="brandColors"]');
+        if (!triggerBtn || !triggerBtn.parentNode) {
+            return;
+        }
+
+        colors.forEach((hex) => {
+            const swatch = document.createElement('button');
+            swatch.type = 'button';
+            swatch.title = `Apply ${hex}`;
+            swatch.style.width = '24px';
+            swatch.style.height = '24px';
+            swatch.style.borderRadius = '50%';
+            swatch.style.border = '1px solid #cbd5e1';
+            swatch.style.background = hex;
+            swatch.style.cursor = 'pointer';
+            swatch.addEventListener('click', () => {
+                this.restoreSelectionRange();
+                this.ensureSelectionInEditor();
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0 && !selection.isCollapsed && this.content.contains(selection.anchorNode)) {
+                    const range = selection.getRangeAt(0);
+                    const span = document.createElement('span');
+                    span.style.color = hex;
+                    this.safeSurroundRange(range, span);
+                } else {
+                    const currentElement = this.getCurrentElement();
+                    if (currentElement) {
+                        currentElement.style.color = hex;
+                    }
+                }
+                this.updateToolbar();
+                this.triggerContentChange();
+            });
+            picker.appendChild(swatch);
+        });
+
+        triggerBtn.style.display = 'none';
+        triggerBtn.parentNode.insertBefore(picker, triggerBtn.nextSibling);
+        setTimeout(() => {
+            picker.remove();
+            triggerBtn.style.display = 'flex';
+        }, 6000);
+    }
+
+    async uploadImage(file, rangeSnapshot = null) {
         // Validate file type
         if (!this.options.allowedImageTypes.includes(file.type)) {
             alert('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.');
@@ -1396,6 +1816,17 @@ class RichTextEditor {
             const result = await response.json();
             
             if (result.url) {
+                this.content.focus();
+                if (rangeSnapshot) {
+                    try {
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(rangeSnapshot);
+                    } catch (e) {
+                        this.placeCaretAtEnd();
+                    }
+                }
+
                 // Create multimedia wrapper for image
                 const wrapper = document.createElement('div');
                 wrapper.className = 'jlm-multimedia';
@@ -1431,7 +1862,9 @@ class RichTextEditor {
         const buttons = this.toolbar.querySelectorAll('.jlm-toolbar-btn');
         buttons.forEach(btn => {
             const command = btn.dataset.command;
-            if (['bold', 'italic', 'underline', 'strikethrough'].includes(command)) {
+            if (command === 'strikethrough') {
+                btn.classList.toggle('active', document.queryCommandState('strikeThrough'));
+            } else if (['bold', 'italic', 'underline'].includes(command)) {
                 btn.classList.toggle('active', document.queryCommandState(command));
             }
         });

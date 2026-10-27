@@ -1,24 +1,42 @@
 <?php
+// Helper function to safely get count from table
+function safeCount($pdo, $table, $where = '') {
+    try {
+        $sql = "SELECT COUNT(*) FROM $table";
+        if ($where) {
+            $sql .= " WHERE $where";
+        }
+        return $pdo->query($sql)->fetchColumn();
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+
+// Helper function to safely get data from table
+function safeQuery($pdo, $sql) {
+    try {
+        return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
+// Helper function to safely execute prepared statement
+function safeExecute($pdo, $sql, $params = []) {
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
 session_start();
+require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/email_utils.php';
-
-// Check admin authentication
-if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
-    header('Location: login.php');
-    exit;
-}
-
-// Get admin user ID from email
-$admin_email = $_SESSION['admin_email'] ?? '';
-$stmt = $pdo->prepare('SELECT id FROM users WHERE email = ? AND role = "admin" LIMIT 1');
-$stmt->execute([$admin_email]);
-$admin_user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$admin_user) {
-    header('Location: login.php');
-    exit;
-}
+$admin_user = require_admin_auth();
 $admin_id = $admin_user['id'];
 $toast = '';
 
@@ -167,21 +185,19 @@ if ($search) {
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
-$stmt = $pdo->prepare("SELECT * FROM email_subscribers $where_clause ORDER BY created_at DESC");
-$stmt->execute($params);
-$subscribers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$subscribers = safeExecute($pdo, "SELECT * FROM email_subscribers $where_clause ORDER BY created_at DESC", $params);
 
 // Get campaigns
-$campaigns = $pdo->query('SELECT * FROM email_campaigns ORDER BY created_at DESC')->fetchAll(PDO::FETCH_ASSOC);
+$campaigns = safeQuery($pdo, 'SELECT * FROM email_campaigns ORDER BY created_at DESC');
 
 // Get statistics
 $stats = [
-    'total' => $pdo->query("SELECT COUNT(*) FROM email_subscribers")->fetchColumn(),
-    'active' => $pdo->query("SELECT COUNT(*) FROM email_subscribers WHERE status = 'active'")->fetchColumn(),
-    'unsubscribed' => $pdo->query("SELECT COUNT(*) FROM email_subscribers WHERE status = 'unsubscribed'")->fetchColumn(),
-    'bounced' => $pdo->query("SELECT COUNT(*) FROM email_subscribers WHERE status = 'bounced'")->fetchColumn(),
-    'campaigns' => $pdo->query("SELECT COUNT(*) FROM email_campaigns")->fetchColumn(),
-    'sent_campaigns' => $pdo->query("SELECT COUNT(*) FROM email_campaigns WHERE status = 'sent'")->fetchColumn(),
+    'total' => safeCount($pdo, 'email_subscribers'),
+    'active' => safeCount($pdo, 'email_subscribers', "status = 'active'"),
+    'unsubscribed' => safeCount($pdo, 'email_subscribers', "status = 'unsubscribed'"),
+    'bounced' => safeCount($pdo, 'email_subscribers', "status = 'bounced'"),
+    'campaigns' => safeCount($pdo, 'email_campaigns'),
+    'sent_campaigns' => safeCount($pdo, 'email_campaigns', "status = 'sent'"),
 ];
 ?>
 

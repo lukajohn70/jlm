@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$response = ['success' => false, 'message' => ''];
+$response = ['success' => false, 'message' => '', 'status' => 'error', 'title' => 'Subscription Update'];
 
 try {
     $email = trim($_POST['email'] ?? '');
@@ -21,6 +21,8 @@ try {
     // Validate email
     if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $response['message'] = 'Please enter a valid email address.';
+        $response['title'] = 'Invalid Email';
+        $response['status'] = 'invalid_email';
         echo json_encode($response);
         exit;
     }
@@ -32,12 +34,17 @@ try {
     
     if ($existing) {
         if ($existing['status'] === 'active') {
-            $response['message'] = 'You are already subscribed to our newsletter.';
+            $response['success'] = true;
+            $response['status'] = 'already_subscribed';
+            $response['title'] = 'Already Subscribed';
+            $response['message'] = 'This email is already subscribed to JLM updates.';
         } else {
             // Reactivate subscription
             $stmt = $pdo->prepare('UPDATE email_subscribers SET status = "active", unsubscribed_at = NULL WHERE email = ?');
             $stmt->execute([$email]);
             $response['success'] = true;
+            $response['status'] = 'reactivated';
+            $response['title'] = 'Subscription Restored';
             $response['message'] = 'Welcome back! Your subscription has been reactivated.';
         }
     } else {
@@ -50,16 +57,25 @@ try {
         $emailResult = sendSubscriptionConfirmation($email, $firstName);
         
         $response['success'] = true;
+        $response['status'] = 'subscribed';
+        $response['title'] = 'Subscription Confirmed';
         if ($emailResult) {
             $response['message'] = 'Thank you for subscribing! Please check your email for confirmation.';
         } else {
             $response['message'] = 'Thank you for subscribing! (Email confirmation may be delayed)';
             error_log("Failed to send subscription confirmation email to: " . $email);
         }
+
+        sendAdminNotification('Newsletter Subscription', [
+            'email' => $email,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+        ]);
     }
     
 } catch (Exception $e) {
     error_log("Subscription error: " . $e->getMessage());
+    $response['title'] = 'Unable To Subscribe';
     $response['message'] = 'An error occurred. Please try again later.';
 }
 

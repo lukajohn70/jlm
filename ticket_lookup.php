@@ -254,7 +254,7 @@ if ($ticketInfo) {
                             </li>
                             <li class="flex items-start">
                                 <i class="fas fa-envelope text-blue-500 mr-2 mt-1"></i>
-                                <span>Email us at info@jlm.com.ng</span>
+                                <span>Email us at support@jlm.com.ng</span>
                             </li>
                         </ul>
                     </div>

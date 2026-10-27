@@ -32,6 +32,7 @@ jogigs/uploads/
 .env
 .env.local
 .env.production
+config/oauth_config.php
 
 # Database files
 *.sql
@@ -47,6 +48,16 @@ vendor/
 *.bak
 *.backup
 *.old
+*.zip
+*.tar.gz
+pure_jlm/
+reupload/
+to-upload/
+jlm_blog_updates/
+direct-sub/
+shop/
+streamvault/
+
 
 # MAMP specific
 Applications/MAMP/

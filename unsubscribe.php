@@ -181,7 +181,7 @@ if ($email && $token) {
             <div class="mt-8 pt-6 border-t border-gray-200 text-center">
                 <p class="text-xs text-gray-500">
                     Questions? Contact us at 
-                    <a href="mailto:info@jlm.com.ng" class="text-blue-600 hover:text-blue-800">info@jlm.com.ng</a>
+                    <a href="mailto:support@jlm.com.ng" class="text-blue-600 hover:text-blue-800">support@jlm.com.ng</a>
                 </p>
             </div>
         </div>

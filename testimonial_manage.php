@@ -1,12 +1,8 @@
 <?php
 session_start();
+require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/config/config.php';
-
-// Check if admin is logged in
-if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
-    header('Location: login.php');
-    exit;
-}
+require_admin_auth();
 
 // Handle actions
 $message = '';
@@ -18,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare('UPDATE testimonials SET status = "approved" WHERE id = ?');
             $stmt->execute([$id]);
+            cache_delete('approved_testimonials_10');
             $message = 'Testimonial approved successfully!';
             $message_type = 'success';
         } catch (Exception $e) {
@@ -29,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare('UPDATE testimonials SET status = "rejected" WHERE id = ?');
             $stmt->execute([$id]);
+            cache_delete('approved_testimonials_10');
             $message = 'Testimonial rejected.';
             $message_type = 'success';
         } catch (Exception $e) {
@@ -40,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare('DELETE FROM testimonials WHERE id = ?');
             $stmt->execute([$id]);
+            cache_delete('approved_testimonials_10');
             $message = 'Testimonial deleted permanently.';
             $message_type = 'success';
         } catch (Exception $e) {
@@ -51,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare('UPDATE testimonials SET status = "archived" WHERE id = ?');
             $stmt->execute([$id]);
+            cache_delete('approved_testimonials_10');
             $message = 'Testimonial archived successfully!';
             $message_type = 'success';
         } catch (Exception $e) {
@@ -62,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare('UPDATE testimonials SET status = "pending" WHERE id = ?');
             $stmt->execute([$id]);
+            cache_delete('approved_testimonials_10');
             $message = 'Testimonial unarchived and set to pending review!';
             $message_type = 'success';
         } catch (Exception $e) {
@@ -73,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare('UPDATE testimonials SET status = "pending" WHERE id = ?');
             $stmt->execute([$id]);
+            cache_delete('approved_testimonials_10');
             $message = 'Testimonial unrejected and set to pending review!';
             $message_type = 'success';
         } catch (Exception $e) {
@@ -431,19 +433,19 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                         <?php foreach ($testimonials as $testimonial): ?>
                                                  <tr class="hover:bg-gray-50">
                              <td class="px-4 py-4 whitespace-nowrap">
-                                 <div class="text-sm font-medium text-gray-900 truncate" title="<?php echo htmlspecialchars($testimonial['name']); ?>"><?php echo htmlspecialchars($testimonial['name']); ?></div>
+                                 <div class="text-sm font-medium text-gray-900 truncate" title="<?php echo htmlspecialchars($testimonial['name'] ?? ''); ?>"><?php echo htmlspecialchars($testimonial['name'] ?? ''); ?></div>
                              </td>
                              <td class="px-4 py-4 whitespace-nowrap">
                                  <div class="text-sm text-gray-900 truncate" title="<?php 
                                      $role_company = [];
-                                     if (!empty($testimonial['role'])) $role_company[] = htmlspecialchars($testimonial['role']);
-                                     if (!empty($testimonial['company'])) $role_company[] = htmlspecialchars($testimonial['company']);
+                                     if (!empty($testimonial['role'] ?? '')) $role_company[] = htmlspecialchars($testimonial['role'] ?? '');
+                                     if (!empty($testimonial['company'] ?? '')) $role_company[] = htmlspecialchars($testimonial['company'] ?? '');
                                      echo implode(', ', $role_company) ?: '-';
                                  ?>">
                                      <?php 
                                      $role_company = [];
-                                     if (!empty($testimonial['role'])) $role_company[] = htmlspecialchars($testimonial['role']);
-                                     if (!empty($testimonial['company'])) $role_company[] = htmlspecialchars($testimonial['company']);
+                                     if (!empty($testimonial['role'] ?? '')) $role_company[] = htmlspecialchars($testimonial['role'] ?? '');
+                                     if (!empty($testimonial['company'] ?? '')) $role_company[] = htmlspecialchars($testimonial['company'] ?? '');
                                      echo implode(', ', $role_company) ?: '-';
                                      ?>
                                  </div>
@@ -451,16 +453,16 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                              <td class="px-4 py-4 whitespace-nowrap">
                                  <div class="flex items-center">
                                      <?php for ($i = 1; $i <= 5; $i++): ?>
-                                     <svg class="w-3 h-3 <?php echo $i <= $testimonial['rating'] ? 'text-yellow-400 fill-current' : 'text-gray-300'; ?>" viewBox="0 0 20 20">
+                                     <svg class="w-3 h-3 <?php echo $i <= ($testimonial['rating'] ?? 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'; ?>" viewBox="0 0 20 20">
                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                      </svg>
                                      <?php endfor; ?>
-                                     <span class="ml-1 text-xs text-gray-500">(<?php echo $testimonial['rating']; ?>/5)</span>
+                                     <span class="ml-1 text-xs text-gray-500">(<?php echo $testimonial['rating'] ?? 0; ?>/5)</span>
                                  </div>
                              </td>
                                                                                       <td class="px-4 py-4">
-                                 <div class="text-sm text-gray-900 truncate" title="<?php echo htmlspecialchars($testimonial['text']); ?>">
-                                     <?php echo htmlspecialchars(mb_strimwidth($testimonial['text'], 0, 60, '...')); ?>
+                                 <div class="text-sm text-gray-900 truncate" title="<?php echo htmlspecialchars($testimonial['text'] ?? ''); ?>">
+                                     <?php echo htmlspecialchars(mb_strimwidth($testimonial['text'] ?? '', 0, 60, '...')); ?>
                                  </div>
                              </td>
                              <td class="px-4 py-4 whitespace-nowrap">
@@ -471,14 +473,14 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                                       'rejected' => 'bg-red-100 text-red-800',
                                       'archived' => 'bg-gray-100 text-gray-800'
                                   ];
-                                  $status_color = $status_colors[$testimonial['status']] ?? 'bg-gray-100 text-gray-800';
+                                  $status_color = $status_colors[$testimonial['status'] ?? 'pending'] ?? 'bg-gray-100 text-gray-800';
                                   ?>
                                  <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full <?php echo $status_color; ?>">
-                                     <?php echo ucfirst($testimonial['status']); ?>
+                                     <?php echo ucfirst($testimonial['status'] ?? 'pending'); ?>
                                  </span>
                              </td>
                              <td class="px-4 py-4 whitespace-nowrap text-xs text-gray-500">
-                                 <?php echo date('M j, Y', strtotime($testimonial['created_at'])); ?>
+                                 <?php echo date('M j, Y', strtotime($testimonial['created_at'] ?? 'now')); ?>
                              </td>
                                                           <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
                                   <div class="flex space-x-1">
@@ -493,7 +495,7 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                                            </svg>
                                        </button>
                                      
-                                     <?php if ($testimonial['status'] === 'pending'): ?>
+                                     <?php if (($testimonial['status'] ?? '') === 'pending'): ?>
                                      <form method="POST" class="inline">
                                                                                    <button type="submit" name="approve_testimonial" value="<?php echo $testimonial['id']; ?>" 
                                                   class="action-btn approve-btn"
@@ -516,7 +518,7 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                                      </form>
                                      <?php endif; ?>
                                      
-                                                                           <?php if ($testimonial['status'] !== 'archived'): ?>
+                                                                           <?php if (($testimonial['status'] ?? '') !== 'archived'): ?>
                                       <form method="POST" class="inline">
                                                                                      <button type="submit" name="archive_testimonial" value="<?php echo $testimonial['id']; ?>" 
                                                    class="action-btn archive-btn"
@@ -529,7 +531,7 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                                       </form>
                                       <?php endif; ?>
                                       
-                                      <?php if ($testimonial['status'] === 'archived'): ?>
+                                      <?php if (($testimonial['status'] ?? '') === 'archived'): ?>
                                       <form method="POST" class="inline">
                                                                                      <button type="submit" name="unarchive_testimonial" value="<?php echo $testimonial['id']; ?>" 
                                                    class="action-btn unarchive-btn"
@@ -542,7 +544,7 @@ $archived_testimonials = $pdo->query("SELECT COUNT(*) FROM testimonials WHERE st
                                       </form>
                                       <?php endif; ?>
                                       
-                                      <?php if ($testimonial['status'] === 'rejected'): ?>
+                                      <?php if (($testimonial['status'] ?? '') === 'rejected'): ?>
                                       <form method="POST" class="inline">
                                                                                      <button type="submit" name="unreject_testimonial" value="<?php echo $testimonial['id']; ?>" 
                                                    class="action-btn unreject-btn"

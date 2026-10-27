@@ -200,7 +200,7 @@
           <div class="mb-8">
             <p class="text-gray-600 mb-4">If you have any questions about these Terms of Service, please contact us:</p>
             <div class="bg-gray-50 rounded-lg p-6">
-              <p class="text-gray-600 mb-2"><strong>Email:</strong> info@jlm.com.ng</p>
+              <p class="text-gray-600 mb-2"><strong>Email:</strong> support@jlm.com.ng</p>
               <p class="text-gray-600"><strong>Website:</strong> <a href="index.php" class="text-[#e4306d] hover:text-[#1b2299]">www.jlm.com.ng</a></p>
             </div>
           </div>
@@ -218,8 +218,15 @@
 
   <!-- Footer -->
   <footer class="bg-gray-900 text-white py-8">
-    <div class="container mx-auto px-4 text-center">
-                    <p class="text-gray-400">&copy; <?php echo date('Y'); ?> JLM. All rights reserved.</p>
+    <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+      <p class="text-gray-400 text-sm">&copy; <?php echo date('Y'); ?> JLM. All rights reserved.</p>
+      <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-400">
+        <a href="index.php" class="hover:text-[#f7de7a] transition-colors">Home</a>
+        <a href="privacy-policy.php" class="hover:text-[#f7de7a] transition-colors">Privacy Policy</a>
+        <a href="terms-of-service.php" class="hover:text-[#f7de7a] transition-colors text-[#f7de7a]">Terms of Service</a>
+        <a href="cookie-policy.php" class="hover:text-[#f7de7a] transition-colors">Cookie Policy</a>
+        <button type="button" onclick="openCookieSettings()" class="hover:text-[#f7de7a] transition-colors bg-transparent border-0 p-0 text-inherit cursor-pointer text-sm font-medium">Cookie Settings</button>
+      </div>
     </div>
   </footer>
 
@@ -244,6 +251,13 @@
     backToTopBtn.addEventListener('click', function() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    function openCookieSettings() {
+      if (window.JLM_COOKIE_CONSENT && typeof window.JLM_COOKIE_CONSENT.openPreferences === 'function') {
+        window.JLM_COOKIE_CONSENT.openPreferences();
+      }
+    }
   </script>
+  <?php require_once __DIR__ . '/includes/cookie_consent.php'; ?>
 </body>
 </html> 

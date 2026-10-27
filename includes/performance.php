@@ -100,6 +100,15 @@ function cache_get($key) {
     return $cache_data['data'];
 }
 
+function cache_delete($key) {
+    $cache_file = __DIR__ . '/../cache/' . md5($key) . '.cache';
+    if (file_exists($cache_file)) {
+        return unlink($cache_file);
+    }
+
+    return true;
+}
+
 /**
  * Clean expired cache files
  */
@@ -280,9 +289,26 @@ function get_lazy_load_script() {
  * Preload critical resources
  */
 function get_critical_resources() {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $scriptDir = rtrim(dirname($scriptName), '/');
+    if ($scriptDir === '.' || $scriptDir === '/') {
+        $scriptDir = '';
+    }
+    $basePath = trim((string) getenv('JLM_BASE_PATH'));
+    if ($basePath !== '') {
+        $basePath = '/' . trim($basePath, '/');
+        if ($basePath === '/') {
+            $basePath = '';
+        }
+    } else {
+        $basePath = $scriptDir;
+    }
+    $cssHref = rtrim($basePath, '/') . '/assets/css/tailwind.css';
+    $jsHref = rtrim($basePath, '/') . '/assets/js/main.js';
+
     return "
-    <link rel='preload' href='/assets/css/tailwind.css' as='style' onload='this.onload=null;this.rel=\"stylesheet\"'>
-    <link rel='preload' href='/assets/js/main.js' as='script'>
+    <link rel='preload' href='{$cssHref}' as='style' onload='this.onload=null;this.rel=\"stylesheet\"'>
+    <link rel='preload' href='{$jsHref}' as='script'>
     <link rel='dns-prefetch' href='//fonts.googleapis.com'>
     <link rel='preconnect' href='//fonts.googleapis.com' crossorigin>
     ";

@@ -1,15 +1,10 @@
 <?php
 session_start();
+require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/email_utils.php';
-
-// Check admin authentication
-if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
-    header('Location: login.php');
-    exit;
-}
-
-$admin_id = $_SESSION['admin_id'] ?? 1; // Default admin ID
+$admin_user = require_admin_auth();
+$admin_id = (int) $admin_user['id'];
 $toast = '';
 
 // Handle form submissions

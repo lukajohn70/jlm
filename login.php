@@ -1,24 +1,72 @@
 <?php
+require_once __DIR__ . '/includes/admin_auth.php';
+jlm_admin_session_bootstrap();
 session_start();
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/config/email_utils.php';
 $error = '';
+if (!empty($_GET['expired'])) {
+    $error = 'Your admin session expired. Please sign in again.';
+}
+if (empty($error) && !empty($_GET['reason'])) {
+    $reason = (string) $_GET['reason'];
+    $reasonMap = [
+        'missing_session' => 'Please sign in to continue.',
+        'session_expired' => 'Your admin session expired. Please sign in again.',
+        'db_unavailable' => 'Admin session check failed because the database is unavailable.',
+        'invalid_admin' => 'Your admin session is no longer valid. Please sign in again.',
+    ];
+    if (isset($reasonMap[$reason])) {
+        $error = $reasonMap[$reason];
+        if ($reason === 'db_unavailable' && defined('DEVELOPMENT_MODE') && DEVELOPMENT_MODE && !empty($db_connection_error)) {
+            $error .= ' (' . $db_connection_error . ')';
+        }
+    }
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'] ?? '';
+    $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($user && password_verify($password, $user['password_hash'])) {
-        if ($user['role'] !== 'admin') {
+    if (!$pdo) {
+        $extra = (defined('DEVELOPMENT_MODE') && DEVELOPMENT_MODE && !empty($db_connection_error))
+            ? ' (' . $db_connection_error . ')'
+            : '';
+        $error = 'Database connection is unavailable.' . $extra;
+    } else {
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    if (empty($error) && $user && password_verify($password, $user['password_hash'])) {
+        if ($user['role'] !== 'admin' || (isset($user['is_active']) && !$user['is_active'])) {
             $error = 'Access denied: Admins only.';
+        } elseif (!empty($user['two_factor_enabled'])) {
+            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $expiresAt = date('Y-m-d H:i:s', time() + 600);
+
+            $stmt = $pdo->prepare('UPDATE users SET two_factor_code = ?, two_factor_expires_at = ? WHERE id = ?');
+            $stmt->execute([$code, $expiresAt, $user['id']]);
+
+            if (sendTwoFactorCodeEmail($user['email'], $user['name'], $code)) {
+                $_SESSION['pending_2fa_user_id'] = $user['id'];
+                $_SESSION['pending_2fa_email'] = $user['email'];
+                $_SESSION['pending_2fa_name'] = $user['name'];
+                header('Location: verify_2fa.php');
+                exit;
+            }
+
+            $error = 'Password accepted, but we could not send the verification code. Check your mail configuration and try again.';
         } else {
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_email'] = $user['email'];
+            jlm_start_admin_session($user);
+            $pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?')->execute([$user['id']]);
             header('Location: admin_dashboard.php');
             exit;
         }
     } else {
-        $error = 'Invalid email or password.';
+        if (empty($error)) {
+            $error = 'Invalid email or password.';
+        }
     }
 }
 ?><!DOCTYPE html>
@@ -28,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Admin Login - JLM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/png" href="assets/images/jlm.png" />
+    <link rel="icon" type="image/png" href="<?php echo asset_url('assets/images/jlm.png'); ?>" />
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
     <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999]">
@@ -41,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="bg-white rounded-2xl shadow-2xl border-0 p-8">
             <div class="flex flex-col items-center mb-6">
                 <div class="w-16 h-16 bg-gradient-to-br from-blue-800 to-pink-600 rounded-2xl flex items-center justify-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 18.341A8 8 0 1 0 4.572 18.34M12 15v2m0 4h.01" /></svg>
+                    <img src="<?php echo asset_url('assets/images/jlm.png'); ?>" alt="JLM Logo" class="h-14 w-auto mx-auto">
                 </div>
                 <h1 class="text-2xl font-bold text-gray-900">Admin Portal</h1>
                 <p class="text-gray-500 text-sm mt-1">Access the JLM admin dashboard</p>
@@ -51,12 +99,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="text-sm text-red-800"><?php echo htmlspecialchars($error); ?></p>
                 </div>
             <?php endif; ?>
-            <form method="post" class="space-y-4">
+            <form id="admin-login-form" method="post" action="login.php" class="space-y-4">
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                     <div class="relative">
                         <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12H8m8 0a4 4 0 1 0-8 0 4 4 0 0 0 8 0z" /></svg>
-                        <input id="email" name="email" type="email" required class="pl-10 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="admin@jlmcreative.ng" />
+                        <input id="email" name="email" type="email" required class="pl-10 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="support@jlm.com.ng" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" />
                     </div>
                 </div>
                 <div>
@@ -66,13 +114,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input id="password" name="password" type="password" required class="pl-10 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your password" />
                     </div>
                 </div>
-                <button type="submit" class="w-full py-2 px-4 bg-gradient-to-r from-blue-800 to-pink-600 text-white font-semibold rounded-lg shadow hover:from-blue-900 hover:to-pink-700 transition">Sign In</button>
+                <button id="admin-login-submit" type="submit" class="w-full py-2 px-4 bg-gradient-to-r from-blue-800 to-pink-600 text-white font-semibold rounded-lg shadow hover:from-blue-900 hover:to-pink-700 transition">Sign In</button>
             </form>
-            <div class="mt-6 text-center text-sm text-gray-500">
-                <p>Forgot your password?</p>
-                <button class="text-blue-800 hover:text-pink-600 font-medium" disabled>Reset Password</button>
+            <div class="mt-6 text-center text-sm">
+                <a href="forgot_password.php" class="text-blue-700 hover:text-pink-600 font-medium">Forgot password?</a>
             </div>
         </div>
     </div>
+    <script>
+        (function () {
+            const form = document.getElementById('admin-login-form');
+            const submitButton = document.getElementById('admin-login-submit');
+            if (!form || !submitButton) return;
+
+            // Ensure click always results in a form submit, even on picky browsers.
+            submitButton.addEventListener('click', function (e) {
+                if (submitButton.disabled) return;
+                if (typeof form.requestSubmit === 'function') {
+                    e.preventDefault();
+                    form.requestSubmit();
+                }
+            });
+
+            form.addEventListener('submit', function () {
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-80', 'cursor-not-allowed');
+                submitButton.textContent = 'Signing In...';
+            });
+        })();
+    </script>
 </body>
 </html> 

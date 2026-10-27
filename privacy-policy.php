@@ -117,13 +117,16 @@
 
           <h2 class="text-2xl font-bold text-gray-800 mb-4">5. Cookies and Tracking Technologies</h2>
           <div class="mb-8">
-            <p class="text-gray-600 mb-4">We use cookies and similar technologies to enhance your browsing experience:</p>
+            <p class="text-gray-600 mb-4">We use cookies and similar technologies to enhance your browsing experience, protect application security, and analyze visitor traffic in compliance with the Nigeria Data Protection Act (NDPA 2023), GDPR, and ePrivacy regulations:</p>
             <ul class="list-disc list-inside text-gray-600 space-y-2">
-              <li><strong>Essential Cookies:</strong> Required for basic website functionality</li>
-              <li><strong>Analytics Cookies:</strong> Help us understand how visitors use our website</li>
-              <li><strong>Preference Cookies:</strong> Remember your settings and preferences</li>
+              <li><strong>Strictly Necessary Cookies:</strong> Required for secure login, CSRF verification, and core site operation. These cannot be disabled.</li>
+              <li><strong>Functional Cookies:</strong> Remember your preferences (such as your name/email for blog comments) and article likes across visits.</li>
+              <li><strong>Analytics Cookies:</strong> Collect anonymous statistics about website usage and performance to help us improve user experience.</li>
+              <li><strong>Marketing Cookies:</strong> Facilitate social platform sharing and media attribution.</li>
             </ul>
-            <p class="text-gray-600 mt-4">You can control cookie settings through your browser preferences.</p>
+            <p class="text-gray-600 mt-4">
+              When you visit our site, our Cookie Consent Manager allows you to accept or decline non-essential cookies. You can modify or withdraw your consent at any time by clicking the <button type="button" onclick="openCookieSettings()" class="text-[#e4306d] hover:underline font-semibold bg-transparent border-0 p-0 cursor-pointer">Cookie Settings</button> button in our footer or reviewing our detailed <a href="cookie-policy.php" class="text-[#1b2299] hover:underline font-semibold">Cookie Policy</a>.
+            </p>
           </div>
 
           <h2 class="text-2xl font-bold text-gray-800 mb-4">6. Your Rights and Choices</h2>
@@ -171,7 +174,7 @@
           <div class="mb-8">
             <p class="text-gray-600 mb-4">If you have any questions about this Privacy Policy or our data practices, please contact us:</p>
             <div class="bg-gray-50 rounded-lg p-6">
-              <p class="text-gray-600 mb-2"><strong>Email:</strong> info@jlm.com.ng</p>
+              <p class="text-gray-600 mb-2"><strong>Email:</strong> support@jlm.com.ng</p>
               <p class="text-gray-600"><strong>Website:</strong> <a href="index.php" class="text-[#e4306d] hover:text-[#1b2299]">www.jlm.com.ng</a></p>
             </div>
           </div>
@@ -182,8 +185,15 @@
 
   <!-- Footer -->
   <footer class="bg-gray-900 text-white py-8">
-    <div class="container mx-auto px-4 text-center">
-                    <p class="text-gray-400">&copy; <?php echo date('Y'); ?> JLM. All rights reserved.</p>
+    <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+      <p class="text-gray-400 text-sm">&copy; <?php echo date('Y'); ?> JLM. All rights reserved.</p>
+      <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-400">
+        <a href="index.php" class="hover:text-[#f7de7a] transition-colors">Home</a>
+        <a href="privacy-policy.php" class="hover:text-[#f7de7a] transition-colors text-[#f7de7a]">Privacy Policy</a>
+        <a href="terms-of-service.php" class="hover:text-[#f7de7a] transition-colors">Terms of Service</a>
+        <a href="cookie-policy.php" class="hover:text-[#f7de7a] transition-colors">Cookie Policy</a>
+        <button type="button" onclick="openCookieSettings()" class="hover:text-[#f7de7a] transition-colors bg-transparent border-0 p-0 text-inherit cursor-pointer text-sm font-medium">Cookie Settings</button>
+      </div>
     </div>
   </footer>
 
@@ -208,6 +218,13 @@
     backToTopBtn.addEventListener('click', function() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    function openCookieSettings() {
+      if (window.JLM_COOKIE_CONSENT && typeof window.JLM_COOKIE_CONSENT.openPreferences === 'function') {
+        window.JLM_COOKIE_CONSENT.openPreferences();
+      }
+    }
   </script>
+  <?php require_once __DIR__ . '/includes/cookie_consent.php'; ?>
 </body>
 </html> 

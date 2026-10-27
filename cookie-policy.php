@@ -129,24 +129,39 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">PHPSESSID</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">Session management and security</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">PHPSESSID</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Strictly Necessary: Session management, CSRF verification, and core security</td>
                     <td class="px-6 py-4 text-sm text-gray-500">Session</td>
                   </tr>
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">cookie_consent</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">Remember your cookie preferences</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">jlm_cookie_consent</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Strictly Necessary: Stores your cookie preferences and category selections</td>
                     <td class="px-6 py-4 text-sm text-gray-500">1 year</td>
                   </tr>
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">_ga</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">Google Analytics - website analytics</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-blue-700 bg-blue-50 px-2 py-0.5 rounded">jlm_blog_liker</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Functional: Remembers liked blog articles across sessions (only with consent)</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">1 year</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-blue-700 bg-blue-50 px-2 py-0.5 rounded">jlm_blog_commenter</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Functional: Remembers commenter name and email for subsequent discussions (only with consent)</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">1 year</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-purple-700 bg-purple-50 px-2 py-0.5 rounded">_ga</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Analytics: Google Analytics - distinguishes unique anonymous visitors</td>
                     <td class="px-6 py-4 text-sm text-gray-500">2 years</td>
                   </tr>
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">_gid</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">Google Analytics - session tracking</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-purple-700 bg-purple-50 px-2 py-0.5 rounded">_gid</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Analytics: Google Analytics - distinguishes session traffic and user interactions</td>
                     <td class="px-6 py-4 text-sm text-gray-500">24 hours</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><code class="text-purple-700 bg-purple-50 px-2 py-0.5 rounded">_gat</code></td>
+                    <td class="px-6 py-4 text-sm text-gray-600">Analytics: Google Analytics - limits request rate on high traffic periods</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">1 minute</td>
                   </tr>
                 </tbody>
               </table>
@@ -208,7 +223,7 @@
           <div class="mb-8">
             <p class="text-gray-600 mb-4">If you have any questions about our use of cookies, please contact us:</p>
             <div class="bg-gray-50 rounded-lg p-6">
-              <p class="text-gray-600 mb-2"><strong>Email:</strong> info@jlm.com.ng</p>
+              <p class="text-gray-600 mb-2"><strong>Email:</strong> support@jlm.com.ng</p>
               <p class="text-gray-600"><strong>Website:</strong> <a href="index.php" class="text-[#e4306d] hover:text-[#1b2299]">www.jlm.com.ng</a></p>
             </div>
           </div>
@@ -229,8 +244,15 @@
 
   <!-- Footer -->
   <footer class="bg-gray-900 text-white py-8">
-    <div class="container mx-auto px-4 text-center">
-                    <p class="text-gray-400">&copy; <?php echo date('Y'); ?> JLM. All rights reserved.</p>
+    <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+      <p class="text-gray-400 text-sm">&copy; <?php echo date('Y'); ?> JLM. All rights reserved.</p>
+      <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-400">
+        <a href="index.php" class="hover:text-[#f7de7a] transition-colors">Home</a>
+        <a href="privacy-policy.php" class="hover:text-[#f7de7a] transition-colors">Privacy Policy</a>
+        <a href="terms-of-service.php" class="hover:text-[#f7de7a] transition-colors">Terms of Service</a>
+        <a href="cookie-policy.php" class="hover:text-[#f7de7a] transition-colors text-[#f7de7a]">Cookie Policy</a>
+        <button type="button" onclick="openCookieSettings()" class="hover:text-[#f7de7a] transition-colors bg-transparent border-0 p-0 text-inherit cursor-pointer text-sm font-medium">Cookie Settings</button>
+      </div>
     </div>
   </footer>
 
@@ -257,9 +279,11 @@
     });
 
     function openCookieSettings() {
-      // This would typically open a cookie consent management interface
-      alert('Cookie settings panel would open here. In a real implementation, this would show a modal with cookie preferences.');
+      if (window.JLM_COOKIE_CONSENT && typeof window.JLM_COOKIE_CONSENT.openPreferences === 'function') {
+        window.JLM_COOKIE_CONSENT.openPreferences();
+      }
     }
   </script>
+  <?php require_once __DIR__ . '/includes/cookie_consent.php'; ?>
 </body>
 </html> 

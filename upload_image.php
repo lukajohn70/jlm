@@ -1,68 +1,65 @@
 <?php
 session_start();
-require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/admin_auth.php';
 
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+header('Content-Type: application/json; charset=UTF-8');
 
-// Check if user is logged in as admin
-if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
+require_admin_auth();
 
-// Check if it's a POST request with file upload
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid request method']);
+    http_response_code(405);
+    echo json_encode(['error' => 'Invalid request method.']);
     exit;
 }
 
-if (!isset($_FILES['file'])) {
+if (empty($_FILES['file']) || !is_array($_FILES['file'])) {
     http_response_code(400);
-    echo json_encode(['error' => 'No file uploaded']);
+    echo json_encode(['error' => 'No file uploaded.']);
     exit;
 }
 
 $file = $_FILES['file'];
-$uploadDir = 'uploads/blog/';
-
-// Create upload directory if it doesn't exist
-if (!is_dir($uploadDir)) {
-    mkdir($uploadDir, 0755, true);
-}
-
-// Validate file type
-$allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-if (!in_array($file['type'], $allowedTypes)) {
+if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.']);
+    echo json_encode(['error' => 'Upload failed.']);
     exit;
 }
 
-// Validate file size (5MB max)
-if ($file['size'] > 5 * 1024 * 1024) {
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$mimeType = $finfo->file($file['tmp_name']);
+$allowedTypes = [
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/gif' => 'gif',
+    'image/webp' => 'webp',
+];
+
+if (!isset($allowedTypes[$mimeType])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Only JPG, PNG, GIF, and WebP images are allowed.']);
+    exit;
+}
+
+if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
     http_response_code(400);
     echo json_encode(['error' => 'File too large. Maximum size is 5MB.']);
     exit;
 }
 
-// Generate unique filename
-$extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-$filename = uniqid() . '_' . time() . '.' . $extension;
-$filepath = $uploadDir . $filename;
-
-// Move uploaded file
-if (move_uploaded_file($file['tmp_name'], $filepath)) {
-    // Return the URL for Quill.js
-    $fileUrl = $filepath;
-    echo json_encode(['url' => $fileUrl]);
-} else {
-    $error = error_get_last();
-    $errorMessage = $error ? $error['message'] : 'Unknown error';
+$uploadDir = __DIR__ . '/uploads/blog/';
+if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to upload file: ' . $errorMessage]);
+    echo json_encode(['error' => 'Unable to create upload directory.']);
+    exit;
 }
-?> 
+
+$filename = 'blog_' . date('YmdHis') . '_' . bin2hex(random_bytes(6)) . '.' . $allowedTypes[$mimeType];
+$targetPath = $uploadDir . $filename;
+
+if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Failed to save uploaded image.']);
+    exit;
+}
+
+echo json_encode(['url' => 'uploads/blog/' . $filename]);

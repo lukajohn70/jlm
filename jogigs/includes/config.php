@@ -1,11 +1,9 @@
 <?php
 // JLM Freelancer Web App - Configuration File
 
-// Database Configuration - Using existing JLM database
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'gwylvxeo_jlm');
-define('DB_USER', 'root');
-define('DB_PASS', 'root');
+// Database Configuration - Using standardized JLM environment variables
+require_once __DIR__ . '/../../config/config.php';
+// The above requires config.php which loads .env and defines constants like DB_HOST, DB_NAME, etc.
 
 // Application Configuration
 define('APP_NAME', 'JoGigs');
